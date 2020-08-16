@@ -283,24 +283,168 @@ TEST_CASE("basic_str_to_float", "[float tests]")
 
 TEST_CASE("roundtrip_all_floats", "[float tests]")
 {
-  uint32_t float_value = 0;
+  auto thread_count = std::thread::hardware_concurrency();
+  uint64_t range_pr_thread = (uint64_t(0x7f7fffff) + 1) / thread_count;
+
+  {
+    auto task = [range_pr_thread](uint64_t range_start, bool print_progress = false)
+    {
+      float float_number;
+      std::string float_str;
+      uint32_t converted_value;
+      float converted_number;
+      int percentage = -1;
+      uint32_t range_end = range_start + uint32_t(range_pr_thread);
+      for (uint32_t float_value = range_start; float_value < range_end; float_value++)
+      {
+        if (print_progress)
+        {
+          int new_percentage = int(double(float_value) / range_pr_thread * 100.0);
+          if (new_percentage != percentage)
+          {
+            percentage = new_percentage;
+            fmt::print(stderr, "\r{} % Negative Done.", percentage);
+          }
+        }
+        uint32_t test_value = float_value | uint32_t(1) << 31;
+        memcpy(&float_number, &test_value, sizeof(float_number));
+        float_str = ft::ryu::to_string(float_number);
+        converted_number = ft::to_float(float_str.c_str(), float_str.size());
+        memcpy(&converted_value, &converted_number, sizeof(converted_value));
+        REQUIRE(test_value == converted_value);
+      }
+    };
+
+    if (thread_count > 1)
+    {
+      std::vector<std::thread> threads;
+      for (uint32_t i = 0; i < thread_count; i++)
+      {
+        auto t_task = [range_pr_thread, task](uint32_t i)
+        {
+          uint64_t range_start = i * range_pr_thread;
+          task(range_start, i == 0);
+        };
+        threads.emplace_back(t_task, i);
+      }
+
+      for (auto& thread : threads)
+      {
+        thread.join();
+      }
+    }
+    else
+    {
+      task(0, true);
+    }
+  }
+  
+  fmt::print(stderr, "\n");
+
+  auto task = [range_pr_thread](uint64_t range_start, bool print_progress = false)
+  {
+    float float_number;
+    std::string float_str;
+    uint32_t converted_value;
+    float converted_number;
+    int percentage = -1;
+    uint32_t range_end = range_start + uint32_t(range_pr_thread);
+    for (uint32_t float_value = range_start; float_value < range_end; float_value++)
+    {
+      if (print_progress)
+      {
+        int new_percentage = int(double(float_value) / range_pr_thread * 100.0);
+        if (new_percentage != percentage)
+        {
+          percentage = new_percentage;
+          fmt::print(stderr, "\r{} % Positive Done.", percentage);
+        }
+      }
+      memcpy(&float_number, &float_value, sizeof(float_number));
+      float_str = ft::ryu::to_string(float_number);
+      converted_number = ft::to_float(float_str.c_str(), float_str.size());
+      memcpy(&converted_value, &converted_number, sizeof(converted_value));
+      REQUIRE(float_value == converted_value);
+    }
+  };
+
+  if (thread_count > 1)
+  {
+    std::vector<std::thread> threads;
+    for (uint32_t i = 0; i < thread_count; i++)
+    {
+      auto t_task = [range_pr_thread, task](uint32_t i)
+      {
+        uint64_t range_start = i * range_pr_thread;
+        task(range_start, i == 0);
+      };
+      threads.emplace_back(t_task, i);
+    }
+
+    for (auto& thread : threads)
+    {
+      thread.join();
+    }
+  }
+  else
+  {
+    task(0, true);
+  }
+  fmt::print(stderr, "\n");
+}
+
+static void assert_float(uint32_t float_value)
+{
   float float_number;
   std::string float_str;
-  uint32_t converted_value;
   float converted_number;
-  int percentage = -1;
-  for (uint32_t float_value = 0; float_value <= 0x7f7fffff; float_value++)
-  {
-    int new_percentage = int(double(float_value) / 0x7f7fffff * 100.0);
-    if (new_percentage != percentage)
-    {
-      percentage = new_percentage;
-      fmt::print(stderr, "\r{} % Done.", percentage);
-    }
-    memcpy(&float_number, &float_value, sizeof(float_number));
-    float_str = ft::ryu::to_string(float_number);
-    converted_number = ft::to_float(float_str.c_str(), float_str.size());
-    memcpy(&converted_value, &converted_number, sizeof(converted_value));
-    REQUIRE(float_value == converted_value);
-  }
+  uint32_t converted_value;
+
+  memcpy(&float_number, &float_value, sizeof(float_number));
+  float_str = ft::ryu::to_string(float_number);
+  converted_number = ft::to_float(float_str.data(), float_str.size());
+  memcpy(&converted_value, &converted_number, sizeof(converted_number));
+  REQUIRE(float_value == converted_value);
+}
+
+TEST_CASE("problematic_float_values", "[float tests]")
+{
+  assert_float(uint32_t(2130706433));
+  assert_float(uint32_t(1325400268));
+  assert_float(uint32_t(1317011660));
+  assert_float(uint32_t(1336934627));
+  assert_float(uint32_t(1300234244));
+  assert_float(uint32_t(1470750605));
+  assert_float(uint32_t(1291845636));
+  assert_float(uint32_t(1283457030));
+  assert_float(uint32_t(1283457028));
+  assert_float(uint32_t(1283457054));
+  assert_float(uint32_t(1275069440));
+  assert_float(uint32_t(1283457025));
+  assert_float(uint32_t(1275068680));
+  assert_float(uint32_t(1275068550));
+  assert_float(uint32_t(1275068530));
+  assert_float(uint32_t(1342177391));
+  assert_float(uint32_t(1275068520));
+  assert_float(uint32_t(1275068490));
+  assert_float(uint32_t(1275068440));
+  assert_float(uint32_t(134217734));
+  assert_float(uint32_t(1336934502));
+  assert_float(uint32_t(1275068480));
+  assert_float(uint32_t(1275068460));
+  assert_float(uint32_t(1275068430));
+  assert_float(uint32_t(1275068420));
+  assert_float(uint32_t(1275068425));
+  assert_float(uint32_t(1258291200));
+  assert_float(uint32_t(7778));
+  assert_float(uint32_t(5160));
+  assert_float(uint32_t(4194304));
+  assert_float(uint32_t(4194305));
+  assert_float(uint32_t(671088640));
+  assert_float(uint32_t(1336934636));
+  assert_float(uint32_t(1336934694));
+  assert_float(uint32_t(402653184));
+  assert_float(uint32_t(1336934436));
+  assert_float(uint32_t(5160));
+  assert_float(uint32_t(79));
 }

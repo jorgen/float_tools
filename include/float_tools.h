@@ -144,11 +144,14 @@ namespace ft
     static inline constexpr int bias() noexcept { return (1 << (exponent_width() - 1)) - 1; }
     static inline constexpr int max_base10_exponent() noexcept { return 308; }
     static inline constexpr int min_base10_exponent() noexcept { return -324; }
+    static inline constexpr int max_double_5_pow_q() noexcept { return 23; }//floor(log_5(1 << (mentissawidth + 2)))
+    static inline constexpr int max_double_2_pow_q() noexcept { return 54; }//floor(log_2(1 << (mentissawidth + 2)))
+
 
     using str_to_float_conversion_type = uint64_t[2];
     static inline constexpr int str_to_float_binary_exponen_init() noexcept { return  64 + 60; }
     static inline constexpr uint64_t str_to_float_mask() noexcept { return  ~((uint64_t(1) << 60) - 1); }
-    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return str_to_float_mask() << 3; }
+    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return 1 << 63; }
     static inline constexpr bool conversion_type_has_mask(const str_to_float_conversion_type& a) noexcept { return a[1] & str_to_float_mask(); }
     static inline constexpr bool conversion_type_has_top_bit_in_mask(const str_to_float_conversion_type& a) noexcept { return a[1] & str_to_float_top_bit_in_mask(); }
     static inline constexpr bool conversion_type_is_null(const str_to_float_conversion_type& a) noexcept { return !a[0] && !a[1]; }
@@ -157,10 +160,12 @@ namespace ft
       uint64_t q = a[1];
       q += 512;
       q >>= 9;
-      int expo_shift = -binary_exponent;
-      uint64_t round = (uint64_t(1) << (expo_shift - 1)) - 1;
-      q += round;
-      q >>= expo_shift;
+      int expo_shift = -binary_exponent + 9;
+      if (expo_shift)
+      {
+        q += uint64_t(1) << (expo_shift - 1);
+        q >>= expo_shift;
+      }
       if (negative)
         q |= uint64_t(1) << 63;
       memcpy(&to_digit, &q, sizeof(q));
@@ -168,7 +173,7 @@ namespace ft
     static inline void copy_normal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, double& to_digit)
     {
       uint64_t q = a[1] & ~str_to_float_mask();
-      q += 128;
+      q += (uint64_t(1) << (8 - 1)) - 1;
       q >>= 8;
       q |= uint64_t(binary_exponent) << mentissa_width();
       if (negative)
@@ -195,6 +200,8 @@ namespace ft
     static inline constexpr int bias() noexcept { return (1 << (exponent_width() - 1)) - 1; }
     static inline constexpr int max_base10_exponent() noexcept { return 38; }
     static inline constexpr int min_base10_exponent() noexcept { return -45; }
+    static inline constexpr int max_double_5_pow_q() noexcept { return 10; } //floor(log_5(1 << (mentissawidth + 2)))
+    static inline constexpr int max_double_2_pow_q() noexcept { return 25; } //floor(log_2(1 << (mentissawidth + 2)))
 
     using str_to_float_conversion_type = uint64_t;
     static inline constexpr int str_to_float_binary_exponen_init() noexcept { return 60; }
@@ -206,12 +213,12 @@ namespace ft
     static inline void copy_denormal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, float &to_digit)
     {
       uint64_t q = a;
-      q += uint64_t(1) << (38 - 1);
-      q >>= 38;
-      int expo_shift = -binary_exponent;
-      uint64_t round = (uint64_t(1) << (expo_shift - 1)) - 1;
-      q += round;
-      q >>= expo_shift;
+      int expo_shift = -binary_exponent + 38;
+      if (expo_shift)
+      {
+        q += uint64_t(1) << (expo_shift - 1);
+        q >>= expo_shift;
+      }
       if (negative)
         q |= uint64_t(1) << 31;
       uint32_t to_copy = uint32_t(q);
@@ -220,9 +227,12 @@ namespace ft
     static inline void copy_normal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, float &to_digit)
     {
       uint64_t q = a & ~str_to_float_mask();
-      q += uint64_t(1) << (37 - 1);
+      if (((q >> 37) & 1) == 1 || binary_exponent > 158 || (q & ((uint64_t(1) << 36) - 1)))
+      {
+        q += (uint64_t(1) << (37 - 1));
+      }
       q >>= 37;
-      q |= uint64_t(binary_exponent) << mentissa_width();
+      q += uint64_t(binary_exponent) << mentissa_width();
       if (negative)
         q |= uint64_t(1) << 31;
       uint32_t to_copy = uint32_t(q);
@@ -247,9 +257,6 @@ namespace ft
     constexpr static const double log_10_2 = 0.30102999566398114;
     constexpr static const double log_10_5 = 0.6989700043360189;
     constexpr static const double log_2_5 = 2.321928094887362;
-
-    constexpr static const int max_double_5_pow_q = 23; //floor(log_5(1 << (mentissawidth + 2)))
-    constexpr static const int max_double_2_pow_q = 54; //floor(log_2(1 << (mentissawidth + 2)))
 
     template<typename T>
     inline void get_parts(T f, bool& negative, int32_t& exp, uint64_t& mentissa)
@@ -281,6 +288,7 @@ namespace ft
       int i = 0;
       if (!accept_larger)
         c -= 1;
+      
       bool all_a_zero = true;
       bool all_b_zero = true;
       uint64_t a_next = a / 10;
@@ -291,35 +299,37 @@ namespace ft
       uint32_t c_remainder = c % 10;
       while (a_next < c_next)
       {
+        a_remainder = a % 10;
+        b_remainder = b % 10;
+        c_remainder = c % 10;
+
         all_b_zero &= bool(!b_remainder);
         all_a_zero &= bool(!a_remainder);
+
         a = a_next;
         b = b_next;
         c = c_next;
         a_next = a / 10;
-        a_remainder = a % 10;
         b_next = b / 10;
-        b_remainder = b % 10;
         c_next = c / 10;
-        c_remainder = c % 10;
         i++;
       }
-      if (accept_smaller && all_a_zero)
+      if (accept_smaller && all_a_zero && a % 10 == 0)
       {
-        while (!a_remainder)
+        while (!(a_next % 10))
         {
+          a_remainder = a % 10;
+          b_remainder = b % 10;
+          c_remainder = c % 10;
+          
           all_b_zero &= bool(!b_remainder);
 
-          a_next = a;
-          b_next = b;
-          c_next = c;
-
-          a = a_next / 10;
-          a_remainder = a_next % 10;
-          b = b_next / 10;
-          b_remainder = b_next % 10;
-          c = c_next / 10;
-          c_remainder = c_next % 10;
+          a = a_next;
+          b = b_next;
+          c = c_next;
+          a_next = a / 10;
+          b_next = b / 10;
+          c_next = c / 10;
           i++;
         }
       }
@@ -449,6 +459,7 @@ namespace ft
       int exp;
       uint64_t mentissa;
       get_parts(f, negative, exp, mentissa);
+      bool shift_u_with_one = mentissa == 0 && exp > 1;
 
       if (std::isnan(f))
       {
@@ -472,7 +483,7 @@ namespace ft
       mentissa *= 4;
 
       uint64_t u = mentissa;
-      if (mentissa == 0 && exp > 1)
+      if (shift_u_with_one)
         u -= 1;
       else
         u -= 2;
@@ -489,13 +500,16 @@ namespace ft
         q = std::max(0, int(exp * log_10_2) - 1);
         int k = cache_values<T>::b0 + int(q * log_2_5);
         shift_right = -exp + q + k;
-        if (q - 1 <= max_double_5_pow_q)
+        if (q - 1 <= float_info<T>::max_double_5_pow_q())
         {
           uint64_t mod = pow_int(5, q - 1);
-          zero[1] = (mentissa % mod) == 0;
-          if (q <= max_double_5_pow_q)
+          if (mod)
           {
-            mod *= mod;
+            zero[1] = (mentissa % mod) == 0;
+          }
+          if (q <= float_info<T>::max_double_5_pow_q())
+          {
+            mod = pow_int(5, q);
             zero[0] = (u % mod) == 0;
             zero[2] = (w % mod) == 0;
           }
@@ -506,16 +520,19 @@ namespace ft
         q = std::max(0, int(-exp * log_10_5) - 1);
         int k = int(std::ceil((-exp - q) * log_2_5)) - cache_values<T>::b1;
         shift_right = q - k;
-        if (q - 1 <= max_double_2_pow_q)
+        if (q && q - 1 <= float_info<T>::max_double_2_pow_q())
         {
           uint64_t mod = uint64_t(1) << (q - 1);
           zero[1] = (mentissa % mod) == 0;
 
-          if (q <= max_double_2_pow_q)
+          if (q <= float_info<T>::max_double_2_pow_q())
           {
             mod <<= 1;
-            zero[0] = (u % mod) == 0;
-            zero[2] = (w % mod) == 0;
+            if (mod)
+            {
+              zero[0] = (u % mod) == 0;
+              zero[2] = (w % mod) == 0;
+            }
           }
         }
       }
@@ -794,7 +811,7 @@ namespace ft
     {
       float_info<T>::copy_denormal_to_type(a, binary_exponent, parsed.negative, to_digit);
     }
-    else if (binary_exponent < (int(1) << float_info<T>::exponent_width()) - 2)
+    else if (binary_exponent < (int(1) << float_info<T>::exponent_width()) - 1)
     {
       float_info<T>::copy_normal_to_type(a, binary_exponent, parsed.negative, to_digit);
     }
@@ -822,5 +839,6 @@ namespace ft
       return std::nan("1");
     return convertToNumber<float>(ps);
   }
+
 }
 #endif //FLOAT_TOOLS_H
