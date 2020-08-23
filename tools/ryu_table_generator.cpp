@@ -16,7 +16,6 @@ namespace ryu
   constexpr static const double log_10_2 = 0.30102999566398114;
   constexpr static const double log_10_5 = 0.6989700043360189;
   constexpr static const double log_2_5 = 2.321928094887362;
-  constexpr static const double log_5_2 = 0.43067655807339306;
 
   template<typename cached_type>
   struct cache_value_t
@@ -45,7 +44,7 @@ namespace ryu
     }
     static void print_data_entry(const cache_value_type& cache_entry)
     {
-      fmt::print("      {{/*{:3}*/ UINT64_C({:20})}}", cache_entry.index, cache_entry.data);
+      fmt::print("      /*{:3}*/ UINT64_C({:20})", cache_entry.index, cache_entry.data);
     }
     
     static void print_return()
@@ -123,7 +122,7 @@ namespace ryu
       int t_min_e2 = get_e2(std::numeric_limits<T>::min());
       int t_max_e2 = get_e2(std::numeric_limits<T>::max());
 
-      using cache_value_type = uint_for_float_converter<T>::cache_value_type;
+      using cache_value_type = typename uint_for_float_converter<T>::cache_value_type;
       std::vector<cache_value_type> gte;
       gte.reserve(t_max_e2);
 

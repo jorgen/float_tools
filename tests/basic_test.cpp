@@ -34,9 +34,9 @@ TEST_CASE("small test", "[ryu]")
   check_str = ft::ryu::to_string(22.22);
   REQUIRE(check_str == "2.222e1");
   check_str = ft::ryu::to_string(std::numeric_limits<double>::min());
-  REQUIRE(check_str == "2.2250738585072013e-308");
+  REQUIRE(check_str == "2.2250738585072014e-308");
   check_str = ft::ryu::to_string(std::numeric_limits<double>::max());
-  REQUIRE(check_str == "1.7976931348623158e308");
+  REQUIRE(check_str == "1.7976931348623157e308");
 }
 
 TEST_CASE("small test negative", "[ryu]")
@@ -60,9 +60,9 @@ TEST_CASE("small test negative", "[ryu]")
   check_str = ft::ryu::to_string(-22.22);
   REQUIRE(check_str == "-2.222e1");
   check_str = ft::ryu::to_string(-std::numeric_limits<double>::min());
-  REQUIRE(check_str == "-2.2250738585072013e-308");
+  REQUIRE(check_str == "-2.2250738585072014e-308");
   check_str = ft::ryu::to_string(-std::numeric_limits<double>::max());
-  REQUIRE(check_str == "-1.7976931348623158e308");
+  REQUIRE(check_str == "-1.7976931348623157e308");
 }
 
 TEST_CASE("basic parsenumber", "[ryu]")
@@ -90,6 +90,7 @@ TEST_CASE("basic convert", "[ryu]")
   REQUIRE(result == ft::parse_string_error::ok);
   double three = 0.3;
   double d = ft::convertToNumber<double>(parsedString);
+  REQUIRE(d == three);
 }
 
 TEST_CASE("basic roundtrip", "[float tools]")
@@ -100,7 +101,10 @@ TEST_CASE("basic roundtrip", "[float tools]")
     double d;
     memcpy(&d, &d_value, sizeof(d));
     std::string d_str = ft::ryu::to_string(d);
-    double d2 = ft::to_double(d_str.data(), d_str.size());
+    const char* endptr;
+    double d2;
+    auto result = ft::to_double(d_str.data(), d_str.size(), d2, endptr);
+    REQUIRE(result == ft::parse_string_error::ok);
     uint64_t d2_value;
     memcpy(&d2_value, &d2, sizeof(d2));
     if (d != d2)
@@ -114,13 +118,15 @@ TEST_CASE("basic roundtrip", "[float tools]")
 TEST_CASE("parse_convert", "[float tools]")
 {
   std::string regular_1 = "123456789";
-  double d = ft::to_double(regular_1.data(), regular_1.size());
+  const char* end_ptr;
+  double d;
+  auto result = ft::to_double(regular_1.data(), regular_1.size(), d, end_ptr);
   uint64_t value;
   memcpy(&value, &d, sizeof(d));
   REQUIRE(d == 123456789.0);
 
   std::string regular_2 = "0.0004";
-  d = ft::to_double(regular_2.data(), regular_2.size());
+  result = ft::to_double(regular_2.data(), regular_2.size(), d, end_ptr);
   memcpy(&value, &d, sizeof(d));
   double compare = 0.0004;
   uint64_t value_compare;
@@ -128,12 +134,12 @@ TEST_CASE("parse_convert", "[float tools]")
   REQUIRE(d == compare);
 
   std::string regular_3 = "0.0004e10";
-  d = ft::to_double(regular_3.data(), regular_3.size());
+  result = ft::to_double(regular_3.data(), regular_3.size(), d, end_ptr);
   memcpy(&value, &d, sizeof(d));
   REQUIRE(d == 0.0004e10);
   
   std::string regular_4 = "234567.5326e-100";
-  d = ft::to_double(regular_4.data(), regular_4.size());
+  result = ft::to_double(regular_4.data(), regular_4.size(), d, end_ptr);
   memcpy(&value, &d, sizeof(d));
   REQUIRE(d == 234567.5326e-100);
 }
@@ -141,47 +147,53 @@ TEST_CASE("parse_convert", "[float tools]")
 TEST_CASE("parse_convert_extremes", "[float tools]")
 {
   std::string too_large = "1.7976931348623157e309";
-  double d = ft::to_double(too_large.data(), too_large.size());
+  const char* end_ptr;
+  double d;
+  auto result = ft::to_double(too_large.data(), too_large.size(), d, end_ptr);
   uint64_t value;
   memcpy(&value, &d, sizeof(d));
   REQUIRE(std::isinf(d));
 
   std::string just_large = "1.7976931348623157e308";
-  d = ft::to_double(just_large.data(), just_large.size());
+  result = ft::to_double(just_large.data(), just_large.size(), d, end_ptr);
   REQUIRE(d == 1.7976931348623157e308);
 
   std::string too_small = "4.9406564584124654e-325";
-  d = ft::to_double(too_small.data(), too_small.size());
+  result = ft::to_double(too_small.data(), too_small.size(), d, end_ptr);
   memcpy(&value, &d, sizeof(d));
   REQUIRE(d == 0.0);
   
   std::string just_small = "4.9406564584124654e-324";
-  d = ft::to_double(just_small.data(), just_small.size());
+  result = ft::to_double(just_small.data(), just_small.size(), d, end_ptr);
   memcpy(&value, &d, sizeof(d));
   REQUIRE(d == 4.9406564584124654e-324);
 }
 
 TEST_CASE("random_numbers", "[roundtrip]")
 {
-  uint64_t range = uint64_t(1) << 50;
-  uint64_t global_offset = uint64_t(1) << 0;
+  uint64_t range = UINT64_C(0x7FEFFFFFFFFFFFFF) - 1;
   uint64_t max_values_pr_thread = uint64_t(1) << 20;
-
+  uint64_t random_step_values = 509;
   auto thread_count = std::thread::hardware_concurrency();
   uint64_t range_pr_thread = range / thread_count;
-  uint64_t steps = range_pr_thread / std::min(max_values_pr_thread, range_pr_thread);
-  steps |= 1;
 
-  auto task = [steps, range_pr_thread](uint64_t range_start, bool print_progress = false)
+  auto task = [range_pr_thread, max_values_pr_thread](uint64_t range_start, const std::vector<uint64_t> &offsets, bool negative, bool print_progress = false)
   {
     uint64_t double_value;
     double double_number;
     std::string double_str;
     double converted_number;
     uint64_t converted_value;
-  
+    const char* end_ptr;
+
+    auto step_size_in_thread = range_pr_thread / max_values_pr_thread;
+    auto scale_to_get_avrage_step = step_size_in_thread / std::max(offsets.size() / 2, size_t(1));
+
     int percentage = -1;
-    for (uint64_t i = 0; i < range_pr_thread; i+= steps)
+    uint64_t i = range_start;
+    uint64_t range_end = range_start + range_pr_thread;
+    uint64_t step_index = 0;
+    while (i < range_end)
     {
       if (print_progress)
       {
@@ -189,94 +201,124 @@ TEST_CASE("random_numbers", "[roundtrip]")
         if (new_percentage != percentage)
         {
           percentage = new_percentage;
-          fmt::print(stderr, "\r{} % Done.", percentage);
+          if (negative)
+            fmt::print(stderr, "\r{} % Done Negative.", percentage);
+          else
+            fmt::print(stderr, "\r{} % Done Positive.", percentage);
         }
       }
-      double_value = range_start + i;// | (uint64_t(1) << 63);
+      double_value = i; 
+      if (negative)
+        double_value |= (uint64_t(1) << 63);
       memcpy(&double_number, &double_value, sizeof(double_number));
       double_str = ft::ryu::to_string(double_number);
-      converted_number = ft::to_double(double_str.data(), double_str.size());
+      auto result = ft::to_double(double_str.data(), double_str.size(), converted_number, end_ptr);
+      REQUIRE(result == ft::parse_string_error::ok);
       memcpy(&converted_value, &converted_number, sizeof(converted_number));
       REQUIRE(converted_value == double_value);
+
+      step_index++;
+      i += offsets[step_index % offsets.size()] * scale_to_get_avrage_step;
     }
+    fmt::print(stderr, "Thread ran for {} iterations\n", step_index);
   };
 
-  if (thread_count > 1)
+  std::vector<std::thread> threads;
+  for (uint32_t i = 0; i < thread_count; i++)
   {
-    std::vector<std::thread> threads;
-    for (uint32_t i = 0; i < thread_count; i++)
+    auto t_task = [range_pr_thread, task, random_step_values](int i)
     {
-      auto t_task = [global_offset, i, range_pr_thread, task]()
+      std::vector<uint64_t> offsets;
+      offsets.reserve(random_step_values);
+      for (int s = 0; s < random_step_values; s++)
       {
-        uint64_t range_start = global_offset + (i * range_pr_thread);
-        task(range_start, i == 0);
-      };
-      threads.emplace_back(t_task);
-    }
-
-    for (auto& thread : threads)
-    {
-      thread.join();
-    }
-
+        offsets.push_back(s);
+      }
+      std::random_device rd;
+      std::mt19937 g(rd() + i);
+      std::shuffle(offsets.begin(), offsets.end(), g);
+      
+      uint64_t range_start = i * range_pr_thread;
+      task(range_start, offsets, false, i == 0);
+    };
+    threads.emplace_back(t_task, i);
   }
-  else
+
+  for (auto& thread : threads)
   {
-    task(0, true);
+    thread.join();
+  }
+  threads.clear();
+
+  for (uint32_t i = 0; i < thread_count; i++)
+  {
+    auto t_task = [range_pr_thread, task, random_step_values](int i)
+    {
+      std::vector<uint64_t> offsets;
+      offsets.reserve(random_step_values);
+      for (int s = 0; s < random_step_values; s++)
+      {
+        offsets.push_back(s);
+      }
+      std::random_device rd;
+      std::mt19937 g(rd() + i);
+      std::shuffle(offsets.begin(), offsets.end(), g);
+      
+      uint64_t range_start = i * range_pr_thread;
+      task(range_start, offsets, true, i == 0);
+    };
+    threads.emplace_back(t_task, i);
+  }
+
+  for (auto& thread : threads)
+  {
+    thread.join();
   }
 }
 
-TEST_CASE("problematic_values", "[roundtrip]")
+static void assert_double(uint64_t double_value)
 {
-  uint64_t double_value;
   double double_number;
   std::string double_str;
   double converted_number;
   uint64_t converted_value;
-  double stdd;
+  std::string charconv_str;
+  charconv_str.resize(30);
+  std::string ryu_str;
+  ryu_str.resize(30);
+  const char* endptr;
 
-  double_value = 1500370978;
   memcpy(&double_number, &double_value, sizeof(double_number));
   double_str = ft::ryu::to_string(double_number);
-  stdd = strtod(double_str.c_str(), nullptr);
-  converted_number = ft::to_double(double_str.data(), double_str.size());
+  //f2s_buffered(double_number, ryu_str.data());
+  auto result = ft::to_double(double_str.data(), double_str.size(), converted_number, endptr);
+  REQUIRE(result == ft::parse_string_error::ok);
   memcpy(&converted_value, &converted_number, sizeof(converted_number));
-  REQUIRE(converted_number == stdd);
-  REQUIRE(converted_value == double_value);
+  REQUIRE(double_value == converted_value);
+}
 
-  double_value = 4611686019697841006;
-  memcpy(&double_number, &double_value, sizeof(double_number));
-  double_str = ft::ryu::to_string(double_number);
-  converted_number = ft::to_double(double_str.data(), double_str.size());
-  memcpy(&converted_value, &converted_number, sizeof(converted_number));
-  stdd = strtod(double_str.c_str(), nullptr);
-  REQUIRE(converted_value == double_value);
-  REQUIRE(converted_number == stdd);
-
-  double_number= -1.1234e-10;
-  memcpy(&double_value, &double_number, sizeof(double_value));
-  double_str = ft::ryu::to_string(double_number);
-  converted_number = ft::to_double(double_str.data(), double_str.size());
-  memcpy(&converted_value, &converted_number, sizeof(converted_number));
-  stdd = strtod(double_str.c_str(), nullptr);
-  REQUIRE(converted_value == double_value);
-  REQUIRE(converted_number == stdd);
+TEST_CASE("problematic_values", "[roundtrip]")
+{
+  //assert_double(UINT64_C(9218868437280221096)); //write test that verifies nan and inf
+  assert_double(UINT64_C(18453984117258189));
+  assert_double(UINT64_C(1500370978));
+  assert_double(UINT64_C(4611686019697841006));
+  assert_double(1297037298273091867);
+  double some_value_number = -1.1234e-10;
+  uint64_t some_value;
+  memcpy(&some_value, &some_value_number, sizeof(some_value));
+  assert_double(some_value);
   
-  double_value = 1297037298273091867;
-  memcpy(&double_number, &double_value, sizeof(double_number));
-  double_str = ft::ryu::to_string(double_number);
-  converted_number = ft::to_double(double_str.data(), double_str.size());
-  memcpy(&converted_value, &converted_number, sizeof(converted_number));
-  stdd = strtod(double_str.c_str(), nullptr);
-  REQUIRE(converted_value == double_value);
-  REQUIRE(converted_number == stdd);
 }
 
 TEST_CASE("basic_str_to_float", "[float tests]")
 {
   float float_number = 0.12345f;
   std::string float_str = ft::ryu::to_string(float_number);
-  float test = ft::to_float(float_str.c_str(), float_str.size());
+  float test;
+  const char* endptr;
+  auto result = ft::to_float(float_str.c_str(), float_str.size(), test, endptr);
+  REQUIRE(result == ft::parse_string_error::ok);
   float compare = 0.12345f;
   REQUIRE(test == compare);
 }
@@ -284,15 +326,16 @@ TEST_CASE("basic_str_to_float", "[float tests]")
 TEST_CASE("roundtrip_all_floats", "[float tests]")
 {
   auto thread_count = std::thread::hardware_concurrency();
-  uint64_t range_pr_thread = (uint64_t(0x7f7fffff) + 1) / thread_count;
+  uint32_t range_pr_thread = (uint32_t(0x7f7fffff) + 1) / thread_count;
 
   {
-    auto task = [range_pr_thread](uint64_t range_start, bool print_progress = false)
+    auto task = [range_pr_thread](uint32_t range_start, bool print_progress = false)
     {
       float float_number;
       std::string float_str;
       uint32_t converted_value;
       float converted_number;
+      const char* endptr;
       int percentage = -1;
       uint32_t range_end = range_start + uint32_t(range_pr_thread);
       for (uint32_t float_value = range_start; float_value < range_end; float_value++)
@@ -309,7 +352,8 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
         uint32_t test_value = float_value | uint32_t(1) << 31;
         memcpy(&float_number, &test_value, sizeof(float_number));
         float_str = ft::ryu::to_string(float_number);
-        converted_number = ft::to_float(float_str.c_str(), float_str.size());
+        auto result = ft::to_float(float_str.c_str(), float_str.size(), converted_number, endptr);
+        REQUIRE(result == ft::parse_string_error::ok);
         memcpy(&converted_value, &converted_number, sizeof(converted_value));
         REQUIRE(test_value == converted_value);
       }
@@ -322,7 +366,7 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
       {
         auto t_task = [range_pr_thread, task](uint32_t i)
         {
-          uint64_t range_start = i * range_pr_thread;
+          uint32_t range_start = i * range_pr_thread;
           task(range_start, i == 0);
         };
         threads.emplace_back(t_task, i);
@@ -341,12 +385,13 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
   
   fmt::print(stderr, "\n");
 
-  auto task = [range_pr_thread](uint64_t range_start, bool print_progress = false)
+  auto task = [range_pr_thread](uint32_t range_start, bool print_progress = false)
   {
     float float_number;
     std::string float_str;
     uint32_t converted_value;
     float converted_number;
+    const char* endptr;
     int percentage = -1;
     uint32_t range_end = range_start + uint32_t(range_pr_thread);
     for (uint32_t float_value = range_start; float_value < range_end; float_value++)
@@ -362,7 +407,8 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
       }
       memcpy(&float_number, &float_value, sizeof(float_number));
       float_str = ft::ryu::to_string(float_number);
-      converted_number = ft::to_float(float_str.c_str(), float_str.size());
+      auto result = ft::to_float(float_str.c_str(), float_str.size(), converted_number, endptr);
+      REQUIRE(result == ft::parse_string_error::ok);
       memcpy(&converted_value, &converted_number, sizeof(converted_value));
       REQUIRE(float_value == converted_value);
     }
@@ -375,7 +421,7 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
     {
       auto t_task = [range_pr_thread, task](uint32_t i)
       {
-        uint64_t range_start = i * range_pr_thread;
+        uint32_t range_start = i * range_pr_thread;
         task(range_start, i == 0);
       };
       threads.emplace_back(t_task, i);
@@ -399,20 +445,27 @@ static void assert_float(uint32_t float_value)
   std::string float_str;
   float converted_number;
   uint32_t converted_value;
+  std::string charconv_str;
+  charconv_str.resize(30);
+  std::string ryu_str;
+  ryu_str.resize(30);
+  const char* endptr;
 
   memcpy(&float_number, &float_value, sizeof(float_number));
   float_str = ft::ryu::to_string(float_number);
-  converted_number = ft::to_float(float_str.data(), float_str.size());
+  auto result = ft::to_float(float_str.data(), float_str.size(), converted_number, endptr);
+  REQUIRE(result == ft::parse_string_error::ok);
   memcpy(&converted_value, &converted_number, sizeof(converted_number));
   REQUIRE(float_value == converted_value);
 }
 
 TEST_CASE("problematic_float_values", "[float tests]")
 {
-  assert_float(uint32_t(2130706433));
-  assert_float(uint32_t(1325400268));
-  assert_float(uint32_t(1317011660));
+  assert_float(uint32_t(3618111833));
   assert_float(uint32_t(1336934627));
+  assert_float(uint32_t(1325400268));
+  assert_float(uint32_t(2130706433));
+  assert_float(uint32_t(1317011660));
   assert_float(uint32_t(1300234244));
   assert_float(uint32_t(1470750605));
   assert_float(uint32_t(1291845636));

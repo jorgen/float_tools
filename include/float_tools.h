@@ -132,6 +132,17 @@ namespace ft
   }
 
   template<typename T>
+  inline void get_parts(T f, bool& negative, int32_t& exp, uint64_t& mentissa)
+  {
+    uint64_t bits = 0;
+    static_assert(sizeof(bits) >= sizeof(f), "Incompatible size");
+    memcpy(&bits, &f, sizeof(f));
+    exp = int32_t((bits >> float_info<T>::mentissa_width()) & (((uint64_t(1) << float_info<T>::exponent_width()) - 1)));
+    mentissa = bits & ((uint64_t(1) << float_info<T>::mentissa_width()) - 1);
+    negative = bits >> ((sizeof(f) * 8) - 1);
+  }
+
+  template<typename T>
   struct float_info 
   {
   };
@@ -149,17 +160,16 @@ namespace ft
 
 
     using str_to_float_conversion_type = uint64_t[2];
+    using uint_alias = uint64_t;
     static inline constexpr int str_to_float_binary_exponen_init() noexcept { return  64 + 60; }
     static inline constexpr uint64_t str_to_float_mask() noexcept { return  ~((uint64_t(1) << 60) - 1); }
-    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return 1 << 63; }
+    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return uint64_t(1) << 63; }
     static inline constexpr bool conversion_type_has_mask(const str_to_float_conversion_type& a) noexcept { return a[1] & str_to_float_mask(); }
     static inline constexpr bool conversion_type_has_top_bit_in_mask(const str_to_float_conversion_type& a) noexcept { return a[1] & str_to_float_top_bit_in_mask(); }
     static inline constexpr bool conversion_type_is_null(const str_to_float_conversion_type& a) noexcept { return !a[0] && !a[1]; }
     static inline void copy_denormal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, double& to_digit)
     {
       uint64_t q = a[1];
-      q += 512;
-      q >>= 9;
       int expo_shift = -binary_exponent + 9;
       if (expo_shift)
       {
@@ -170,17 +180,25 @@ namespace ft
         q |= uint64_t(1) << 63;
       memcpy(&to_digit, &q, sizeof(q));
     }
+
     static inline void copy_normal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, double& to_digit)
     {
       uint64_t q = a[1] & ~str_to_float_mask();
-      q += (uint64_t(1) << (8 - 1)) - 1;
+      uint64_t to_round_off = (q & (uint64_t(1) << 8) - 1);
+      bool bigger =  to_round_off > (uint64_t(1) << (8 - 1)) || (to_round_off == (uint64_t(1) << (8 - 1)) && a[0]);
+      bool tie_odd = (!(q & ((uint64_t(1) << 7) - 1))) && (q & (uint64_t(1)<<8)) && !a[0];
+      if (bigger || tie_odd)
+      {
+        q += uint64_t(1) << (8 - 1);
+      }
       q >>= 8;
-      q |= uint64_t(binary_exponent) << mentissa_width();
+      q += uint64_t(binary_exponent) << mentissa_width();
       if (negative)
         q |= uint64_t(1) << 63;
       memcpy(&to_digit, &q, sizeof(q));
     }
   };
+
   inline void assign_significand_to_float_conversion_type(const float_base10 &significand, uint64_t(&a)[2])
   {
     a[0] = significand.significand;
@@ -204,9 +222,10 @@ namespace ft
     static inline constexpr int max_double_2_pow_q() noexcept { return 25; } //floor(log_2(1 << (mentissawidth + 2)))
 
     using str_to_float_conversion_type = uint64_t;
+    using uint_alias = uint32_t;
     static inline constexpr int str_to_float_binary_exponen_init() noexcept { return 60; }
     static inline constexpr uint64_t str_to_float_mask() noexcept { return  ~((uint64_t(1) << 60) - 1); }
-    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return str_to_float_mask() << 3; }
+    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return uint64_t(1) << 63; }
     static inline constexpr bool conversion_type_has_mask(const str_to_float_conversion_type& a) noexcept { return a & str_to_float_mask(); }
     static inline constexpr bool conversion_type_has_top_bit_in_mask(const str_to_float_conversion_type& a) noexcept { return a & str_to_float_top_bit_in_mask(); }
     static inline constexpr bool conversion_type_is_null(const str_to_float_conversion_type& a) noexcept { return !a; }
@@ -227,7 +246,9 @@ namespace ft
     static inline void copy_normal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, float &to_digit)
     {
       uint64_t q = a & ~str_to_float_mask();
-      if (((q >> 37) & 1) == 1 || binary_exponent > 158 || (q & ((uint64_t(1) << 36) - 1)))
+      bool bigger = (q & (uint64_t(1) << 37) - 1) > (uint64_t(1) << (37 - 1));
+      bool tie_odd = (!(q & ((uint64_t(1) << 36) - 1))) && (q & (uint64_t(1)<<37));
+      if (bigger || tie_odd)
       {
         q += (uint64_t(1) << (37 - 1));
       }
@@ -236,9 +257,81 @@ namespace ft
       if (negative)
         q |= uint64_t(1) << 31;
       uint32_t to_copy = uint32_t(q);
-      memcpy(&to_digit, &to_copy, sizeof(to_copy));
+      memcpy(&to_digit, &to_copy, sizeof(to_digit));
     }
   };
+
+  template<typename T>
+  inline T make_inf(bool negative)
+  {
+    using uint_ft = typename float_info<T>::uint_alias;
+    uint_ft tmp = (uint_ft(1) << float_info<T>::exponent_width()) - 1;
+    tmp <<= float_info<T>::mentissa_width();
+    if (negative)
+      tmp |= uint_ft(1) << ((sizeof(T) * 8) - 1);
+    T ret;
+    memcpy(&ret, &tmp, sizeof(tmp));
+    return ret;
+  }
+
+  template<typename T>
+  inline T make_nan(bool positive, uint64_t pos = 1)
+  {
+    if (pos == 0)
+      pos++;
+    using uint_ft = typename float_info<T>::uint_alias;
+    uint_ft tmp = (uint_ft(1) << float_info<T>::exponent_width()) - 1;
+    tmp <<= float_info<T>::mentissa_width();
+    tmp |= pos;
+    if (!positive)
+      tmp |= uint_ft(1) << ((sizeof(T) * 8) - 1);
+    T ret;
+    memcpy(&ret, &tmp, sizeof(tmp));
+    return ret;
+  }
+
+  template<typename T>
+  inline bool is_nan(T t)
+  {
+    bool negative;
+    int32_t exp;
+    uint64_t mentissa;
+    get_parts(t, negative, exp, mentissa);
+    return exp == ((int32_t(1) << float_info<T>::exponent_width()) - 1) && mentissa > 0;
+  }
+  
+  template<typename T>
+  inline bool is_inf(T t)
+  {
+    bool negative;
+    int32_t exp;
+    uint64_t mentissa;
+    get_parts(t, negative, exp, mentissa);
+    return exp == ((int32_t(1) << float_info<T>::exponent_width()) - 1) && mentissa == 0;
+  }
+
+  template<typename T>
+  const T& max(const T& a, const T& b)
+  {
+    return (a < b) ? b : a;
+  }
+  
+  template<typename T>
+  const T& min(const T& a, const T& b)
+  {
+    return (b < a) ? b : a;
+  }
+
+  template<typename I, typename P>
+  constexpr I find_if(I first, I last, P p)
+  {
+    for (; first != last; ++first) {
+      if (p(*first)) {
+        return first;
+      }
+    }
+    return last;
+  }
 
   inline void assign_significand_to_float_conversion_type(const float_base10 &significand, uint64_t &a)
   {
@@ -257,17 +350,6 @@ namespace ft
     constexpr static const double log_10_2 = 0.30102999566398114;
     constexpr static const double log_10_5 = 0.6989700043360189;
     constexpr static const double log_2_5 = 2.321928094887362;
-
-    template<typename T>
-    inline void get_parts(T f, bool& negative, int32_t& exp, uint64_t& mentissa)
-    {
-      uint64_t bits = 0;
-      static_assert(sizeof(bits) >= sizeof(f), "Incompatible size");
-      memcpy(&bits, &f, sizeof(f));
-      exp = int32_t((bits >> float_info<T>::mentissa_width()) & (((uint64_t(1) << float_info<T>::exponent_width()) - 1)));
-      mentissa = bits & ((uint64_t(1) << float_info<T>::mentissa_width()) - 1);
-      negative = bits >> ((sizeof(f) * 8) - 1);
-    }
 
     template<typename T>
     inline void normalize(int& exp, uint64_t& mentissa)
@@ -353,7 +435,6 @@ namespace ft
     {
       static int countCharactersInNumber(uint64_t n)
       {
-        uint64_t bigN = NUMBER;
         if (n < NUMBER)
           return START_INDEX - INDEX + 1;
         return NumberLength<NUMBER * 10, INDEX - 1, START_INDEX>::countCharactersInNumber(n);
@@ -375,11 +456,11 @@ namespace ft
     }
 
     template<typename T>
-    inline uint64_t multiply_and_shift(uint64_t a, const uint64_t* b, int shift_right)
+    inline uint64_t multiply_and_shift(uint64_t a, const uint64_t* b, int shift_right, bool round_up)
     {
     }
     template<>
-    inline uint64_t multiply_and_shift<double>(uint64_t a, const uint64_t *b, int shift_right)
+    inline uint64_t multiply_and_shift<double>(uint64_t a, const uint64_t *b, int shift_right, bool round_up)
     {
       uint64_t a0, a1, b0, b1, b2, b3, a0b0, a0b1, a0b2, a0b3, a1b0, a1b1, a1b2, a1b3;
       a0 = low(a); a1 = high(a); b0 = low(b[0]); b1 = high(b[0]); b2 = low(b[1]); b3 = high(b[1]);
@@ -406,13 +487,27 @@ namespace ft
 
       int index = shift_right / 64;
       int shift_right_in_index = shift_right - (index * 64);
+      if (round_up)
+      {
+        if (shift_right_in_index)
+        {
+          if (!(ret[index] & (uint64_t(1) << (shift_right_in_index - 1))))
+            round_up = false;
+        }
+        else
+        {
+          if (!(index > 0 && ret[index] & uint64_t(1) << 63))
+            round_up = false;
+        }
+      }
       ret[index] >>= shift_right_in_index;
       ret[index] |= (ret[index + 1] & ((uint64_t(1) << shift_right_in_index) - 1)) << (64 - shift_right_in_index);
+      ret[index] += round_up;
       return ret[index];
     }
    
     template<>
-    inline uint64_t multiply_and_shift<float>(uint64_t a, const uint64_t *b, int shift_right)
+    inline uint64_t multiply_and_shift<float>(uint64_t a, const uint64_t *b, int shift_right, bool round_up)
     {
       uint64_t a0, a1, b0, b1, a0b0, a0b1, a1b0, a1b1;
       a0 = low(a); a1 = high(a); b0 = low(*b); b1 = high(*b);
@@ -435,8 +530,22 @@ namespace ft
 
       int index = shift_right / 64;
       int shift_right_in_index = shift_right - (index * 64);
+      if (round_up)
+      {
+        if (shift_right_in_index)
+        {
+          if (!(ret[index] & (uint64_t(1) << (shift_right_in_index - 1))))
+            round_up = false;
+        }
+        else
+        {
+          if (!(index > 0 && ret[index] & uint64_t(1) << 63))
+            round_up = false;
+        }
+      }
       ret[index] >>= shift_right_in_index;
       ret[index] |= (ret[index + 1] & ((uint64_t(1) << shift_right_in_index) - 1)) << (64 - shift_right_in_index);
+      ret[index] += round_up;
       return ret[index];
     }
 
@@ -461,13 +570,13 @@ namespace ft
       get_parts(f, negative, exp, mentissa);
       bool shift_u_with_one = mentissa == 0 && exp > 1;
 
-      if (std::isnan(f))
-      {
-        return { negative, true };
-      }
-      if (std::isinf(f))
+      if (is_nan(f))
       {
         return { negative, false, true };
+      }
+      if (is_inf(f))
+      {
+        return { negative, true, false};
       }
       if (!exp && !mentissa)
       {
@@ -497,7 +606,7 @@ namespace ft
       bool zero[3] = {};
       if (exp >= 0)
       {
-        q = std::max(0, int(exp * log_10_2) - 1);
+        q = max(0, int(exp * log_10_2) - 1);
         int k = cache_values<T>::b0 + int(q * log_2_5);
         shift_right = -exp + q + k;
         if (q - 1 <= float_info<T>::max_double_5_pow_q())
@@ -517,7 +626,7 @@ namespace ft
       }
       else
       {
-        q = std::max(0, int(-exp * log_10_5) - 1);
+        q = max(0, int(-exp * log_10_5) - 1);
         int k = int(std::ceil((-exp - q) * log_2_5)) - cache_values<T>::b1;
         shift_right = q - k;
         if (q && q - 1 <= float_info<T>::max_double_2_pow_q())
@@ -537,9 +646,9 @@ namespace ft
         }
       }
       auto cache_value = exp >= 0 ? cache_values<T>::greater_than_equals(q) : cache_values<T>::less_than(-exp - q);
-      uint64_t a = multiply_and_shift<T>(u, cache_value, shift_right);
-      uint64_t b = multiply_and_shift<T>(mentissa, cache_value, shift_right);
-      uint64_t c = multiply_and_shift<T>(w, cache_value, shift_right);
+      uint64_t a = multiply_and_shift<T>(u, cache_value, shift_right, true);
+      uint64_t b = multiply_and_shift<T>(mentissa, cache_value, shift_right, false);
+      uint64_t c = multiply_and_shift<T>(w, cache_value, shift_right, false);
 
       int32_t exponent_adjust;
       uint64_t shortest_base10;
@@ -601,7 +710,6 @@ namespace ft
       }
       exponent_digit_count += result.exp < 0;
 
-      int str_size = result.significand_digit_count + 1 + 1 + exponent_digit_count;
       buffer[offset++] = significan_buffer[0];
       if (buffer_size < 2)
         return 1;
@@ -609,7 +717,7 @@ namespace ft
         buffer[offset++] = '.';
       if (buffer_size < 3)
         return 2;
-      int32_t to_copy = std::min(buffer_size - offset, int32_t(result.significand_digit_count) - 1);
+      int32_t to_copy = min(buffer_size - offset, int32_t(result.significand_digit_count) - 1);
       for (int i = 0; i < to_copy; i++)
       {
         buffer[offset++] = significan_buffer[1 + i];
@@ -618,7 +726,7 @@ namespace ft
         return offset;
 
       buffer[offset++] = 'e';
-      to_copy = std::min(buffer_size - offset, exponent_digit_count);
+      to_copy = min(buffer_size - offset, exponent_digit_count);
       for (int i = 0; i < to_copy; i++)
       {
         buffer[offset++] = exponent_buffer[i];
@@ -627,23 +735,6 @@ namespace ft
       return offset;
     }
 
-    inline std::string to_string(float f)
-    {
-      auto decoded = decode(f);
-      std::string ret;
-      ret.resize(25);
-      ret.resize(to_string_int(decoded, &ret[0], ret.size()));
-      return ret;
-    }
-
-    inline std::string to_string(double d)
-    {
-      auto decoded = decode(d);
-      std::string ret;
-      ret.resize(25);
-      ret.resize(to_string_int(decoded, &ret[0], ret.size()));
-      return ret;
-    }
   }
 
   struct set_end_ptr
@@ -653,6 +744,19 @@ namespace ft
     parsed_string& parsedString;
     const char*& current;
   };
+
+  inline bool is_space(char a)
+  {
+    if (a == 0x20
+      || a == 0x09
+      || a == 0x0a
+      || a == 0x0b
+      || a == 0x0c
+      || a == 0x0d
+      )
+      return true;
+    return false;
+  }
 
   inline parse_string_error parseNumber(const char* number, size_t size, parsed_string& parsedString)
   {
@@ -668,7 +772,7 @@ namespace ft
     parsedString.exp = 0;
 
     const char* number_end = number + size;
-    current = std::find_if(number, number_end, [](const char a) { return !std::isspace(a); });
+    current = find_if(number, number_end, [](const char a) { return !is_space(a); });
     if (number_end == current)
     {
       return parse_string_error::empty_string;
@@ -755,7 +859,7 @@ namespace ft
     int base10exponent = parsed.exp + parsed.significand_digit_count - 1;
     if (base10exponent > float_info<T>::max_base10_exponent())
     {
-      return parsed.negative ? -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::infinity();
+      return make_inf<T>(parsed.negative);
     }
     else if (base10exponent < float_info<T>::min_base10_exponent())
     {
@@ -765,7 +869,7 @@ namespace ft
     {
       return parsed.negative ? T(-0.0) : T(0.0);
     }
-    using uint_conversion_type = float_info<T>::str_to_float_conversion_type;
+    using uint_conversion_type = typename float_info<T>::str_to_float_conversion_type;
     uint_conversion_type a;
     uint_conversion_type b;
     assign_significand_to_float_conversion_type(parsed, a);
@@ -817,27 +921,63 @@ namespace ft
     }
     else
     {
-      to_digit = parsed.negative ? -std::numeric_limits<T>::infinity() : std::numeric_limits<T>::infinity();
+      to_digit = make_inf<T>(parsed.negative);
     }
     return to_digit;
   }
 
-  inline double to_double(const char* str, size_t size)
+  namespace ryu
   {
-    parsed_string ps;
-    auto parseResult = parseNumber(str, size, ps);
-    if (parseResult != parse_string_error::ok)
-      return std::nan("1");
-    return convertToNumber<double>(ps);
+    inline std::string to_string(float f)
+    {
+      auto decoded = decode(f);
+      std::string ret;
+      ret.resize(25);
+      ret.resize(to_string_int(decoded, &ret[0], int(ret.size())));
+      return ret;
+    }
+
+    inline std::string to_string(double d)
+    {
+      auto decoded = decode(d);
+      std::string ret;
+      ret.resize(25);
+      ret.resize(to_string_int(decoded, &ret[0], int(ret.size())));
+      return ret;
+    }
+
+    inline int to_string(double d, char* buffer, int buffer_size)
+    {
+      auto decoded = decode(d);
+      return to_string_int(decoded, buffer, buffer_size);
+    }
   }
   
-  inline double to_float(const char* str, size_t size)
+  template<typename T>
+  inline parse_string_error to_ieee_t(const char* str, size_t size, T &target, const char *(&endptr))
   {
     parsed_string ps;
     auto parseResult = parseNumber(str, size, ps);
+    endptr = ps.endptr;
     if (parseResult != parse_string_error::ok)
-      return std::nan("1");
-    return convertToNumber<float>(ps);
+    {
+      target = make_nan<T>(true, 1);
+    }
+    else
+    {
+      target = convertToNumber<T>(ps);
+    }
+    return parseResult;
+  }
+ 
+  inline parse_string_error to_float(const char* str, size_t size, float &target, const char *(&endptr))
+  {
+    return to_ieee_t(str, size, target, endptr);
+  }
+
+  inline parse_string_error to_double(const char* str, size_t size, double &target, const char *(&endptr))
+  {
+    return to_ieee_t(str, size, target, endptr);
   }
 
 }
