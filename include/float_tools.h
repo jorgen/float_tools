@@ -28,12 +28,6 @@
 #define FLOAT_TOOLS_H
 
 #include <stdint.h>
-#include <math.h>
-#include <ttmath/ttmath.h>
-#include <fmt/printf.h>
-#include <algorithm>
-#include <string.h>
-#include <array>
 
 namespace ft
 {
