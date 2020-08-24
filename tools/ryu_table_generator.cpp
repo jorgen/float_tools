@@ -242,6 +242,8 @@ namespace ryu
 
 int main(int argc, char **argv)
 {
+  (void)argc;
+  (void)argv;
   fmt::print("template<typename T>\nstruct cache_values\n{{\n}};\n\n");
 
   constexpr static const int double_mentissa_width = 52;

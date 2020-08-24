@@ -125,16 +125,6 @@ namespace ft
     a /= 10;
   }
 
-  template<typename T>
-  inline void get_parts(T f, bool& negative, int32_t& exp, uint64_t& mentissa)
-  {
-    uint64_t bits = 0;
-    static_assert(sizeof(bits) >= sizeof(f), "Incompatible size");
-    memcpy(&bits, &f, sizeof(f));
-    exp = int32_t((bits >> float_info<T>::mentissa_width()) & (((uint64_t(1) << float_info<T>::exponent_width()) - 1)));
-    mentissa = bits & ((uint64_t(1) << float_info<T>::mentissa_width()) - 1);
-    negative = bits >> ((sizeof(f) * 8) - 1);
-  }
 
   template<typename T>
   struct float_info 
@@ -192,6 +182,17 @@ namespace ft
       memcpy(&to_digit, &q, sizeof(q));
     }
   };
+  
+  template<typename T>
+  inline void get_parts(T f, bool& negative, int32_t& exp, uint64_t& mentissa)
+  {
+    uint64_t bits = 0;
+    static_assert(sizeof(bits) >= sizeof(f), "Incompatible size");
+    memcpy(&bits, &f, sizeof(f));
+    exp = int32_t((bits >> float_info<T>::mentissa_width()) & (((uint64_t(1) << float_info<T>::exponent_width()) - 1)));
+    mentissa = bits & ((uint64_t(1) << float_info<T>::mentissa_width()) - 1);
+    negative = bits >> ((sizeof(f) * 8) - 1);
+  }
 
   inline void assign_significand_to_float_conversion_type(const float_base10 &significand, uint64_t(&a)[2])
   {
@@ -438,7 +439,7 @@ namespace ft
     template<uint64_t NUMBER, int START_INDEX>
     struct NumberLength<NUMBER, 0, START_INDEX>
     {
-      static int countCharactersInNumber(uint64_t n)
+      static int countCharactersInNumber(uint64_t)
       {
         return int(START_INDEX);
       }
@@ -647,9 +648,9 @@ namespace ft
       int32_t exponent_adjust;
       uint64_t shortest_base10;
       compute_shortest(a, b, c, accept_smaller && zero[0], accept_larger || !zero[2], zero[1], exponent_adjust, shortest_base10);
-      uint8_t significand_digit_count = digitsInNumber(shortest_base10);
+      int significand_digit_count = digitsInNumber(shortest_base10);
       int32_t e = exponent_adjust + e10 + q + significand_digit_count - 1;
-      return { negative, false, false, significand_digit_count, e, shortest_base10 };
+      return { negative, false, false, uint8_t(significand_digit_count), e, shortest_base10 };
     }
 
     static int to_string_int(const float_base10& result, char* buffer, int32_t buffer_size)
@@ -922,18 +923,10 @@ namespace ft
 
   namespace ryu
   {
-    inline std::string to_string(float f)
+    template<typename T>
+    inline std::string to_string(T f)
     {
       auto decoded = decode(f);
-      std::string ret;
-      ret.resize(25);
-      ret.resize(to_string_int(decoded, &ret[0], int(ret.size())));
-      return ret;
-    }
-
-    inline std::string to_string(double d)
-    {
-      auto decoded = decode(d);
       std::string ret;
       ret.resize(25);
       ret.resize(to_string_int(decoded, &ret[0], int(ret.size())));
