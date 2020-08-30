@@ -425,29 +425,93 @@ namespace ft
       }
     }
 
-    template<uint64_t NUMBER, int INDEX, int START_INDEX>
-    struct NumberLength
+    template<typename T, int COUNT, T SUM>
+    struct Pow10
     {
-      static int countCharactersInNumber(uint64_t n)
+      static inline T get() noexcept
       {
-        if (n < NUMBER)
-          return START_INDEX - INDEX + 1;
-        return NumberLength<NUMBER * 10, INDEX - 1, START_INDEX>::countCharactersInNumber(n);
-      }
-
-    };
-    template<uint64_t NUMBER, int START_INDEX>
-    struct NumberLength<NUMBER, 0, START_INDEX>
-    {
-      static int countCharactersInNumber(uint64_t)
-      {
-        return int(START_INDEX);
+        return Pow10<T, COUNT - 1, SUM * 10>::get();
       }
     };
-
-    int digitsInNumber(uint64_t n)
+    template<typename T, T SUM>
+    struct Pow10<T, 1, SUM>
     {
-      return NumberLength<10, 17, 17>::countCharactersInNumber(n);
+      static inline T get() noexcept
+      {
+        return SUM;
+      }
+    };
+    template<typename T, T SUM>
+    struct Pow10<T, 0, SUM>
+    {
+      static inline T get() noexcept
+      {
+        return 1;
+      }
+    };
+
+    template<typename T, T VALUE, int SUM, T ABORT_VALUE, bool CONTINUE>
+    struct StaticLog10
+    {
+      constexpr static int get() noexcept
+      {
+        return StaticLog10<T, VALUE / 10, SUM + 1, ABORT_VALUE, VALUE / 10 != ABORT_VALUE>::get();
+      }
+    };
+
+    template<typename T, T VALUE, T ABORT_VALUE, int SUM>
+    struct StaticLog10<T, VALUE, SUM, ABORT_VALUE, false>
+    {
+      constexpr static int get() noexcept
+      {
+        return SUM;
+      }
+    };
+
+    template<typename T, int WIDTH, int CURRENT>
+    struct CharsInDigit 
+    {
+      static constexpr int upper_bounds(T t) noexcept
+      {
+        if (WIDTH > 0)
+        {
+          if (t >= Pow10<T, CURRENT + WIDTH / 2, 1>::get())
+          {
+            return CharsInDigit<T, WIDTH / 2, CURRENT + WIDTH / 2 + 1>::upper_bounds(t);
+          }
+          else
+          {
+            return CharsInDigit<T, WIDTH / 2, CURRENT>::upper_bounds(t);
+          }
+        }
+        return 0;
+      }
+    };
+    template<typename T, int CURRENT>
+    struct CharsInDigit<T, 0, CURRENT>
+    {
+      static constexpr int upper_bounds(T t) noexcept
+      {
+        return CURRENT;
+      }
+    };
+
+    template<typename T>
+    T iabs(T a)
+    {
+      if (std::is_unsigned<T>::value)
+        return a;
+      else
+        return a < T(0) ? -a : a;
+    }
+
+    template<typename T>
+    int count_chars(T t) noexcept
+    {
+      if (t == T(0))
+        return 1;
+      constexpr int maxChars = StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() - 1;
+      return CharsInDigit<T, maxChars, 0>::upper_bounds(iabs(t)) - 1;
     }
 
     template<typename T>
@@ -648,7 +712,7 @@ namespace ft
       int32_t exponent_adjust;
       uint64_t shortest_base10;
       compute_shortest(a, b, c, accept_smaller && zero[0], accept_larger || !zero[2], zero[1], exponent_adjust, shortest_base10);
-      int significand_digit_count = digitsInNumber(shortest_base10);
+      int significand_digit_count = count_chars(shortest_base10);
       int32_t e = exponent_adjust + e10 + q + significand_digit_count - 1;
       return { negative, false, false, uint8_t(significand_digit_count), e, shortest_base10 };
     }
@@ -693,7 +757,7 @@ namespace ft
 
       int32_t abs_exp = std::abs(result.exp);
       char exponent_buffer[4];
-      int exponent_digit_count = digitsInNumber(uint32_t(abs_exp));
+      int exponent_digit_count = count_chars(uint32_t(abs_exp));
       if (result.exp < 0)
       {
         exponent_buffer[0] = '-';

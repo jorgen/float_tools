@@ -4,7 +4,6 @@ project (float_to_string)
 set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_CXX_EXTENSIONS OFF)
 
-message("compiler id ${CMAKE_CXX_COMPILER_ID}")
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
 	add_compile_options(/permissive-)
 	if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
