@@ -3,6 +3,7 @@ include(CTest)
 add_executable(basic_test
     catch_main.cpp
     basic_test.cpp
+    count_chars_test.cpp
     )
 target_link_libraries(basic_test fmt::fmt)
 target_include_directories(basic_test PRIVATE ${TTMATH_INCLUDE_DIR})

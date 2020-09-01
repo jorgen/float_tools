@@ -338,6 +338,96 @@ namespace ft
     b = a;
   }
 
+  template<typename T, int COUNT, T SUM>
+  struct Pow10
+  {
+    static inline T get() noexcept
+    {
+      return Pow10<T, COUNT - 1, SUM * T(10)>::get();
+    }
+  };
+  template<typename T, T SUM>
+  struct Pow10<T, 1, SUM>
+  {
+    static inline T get() noexcept
+    {
+      return SUM;
+    }
+  };
+  template<typename T, T SUM>
+  struct Pow10<T, 0, SUM>
+  {
+    static inline T get() noexcept
+    {
+      return 1;
+    }
+  };
+
+  template<typename T, T VALUE, int SUM, T ABORT_VALUE, bool CONTINUE>
+  struct StaticLog10
+  {
+    constexpr static int get() noexcept
+    {
+      return StaticLog10<T, VALUE / 10, SUM + 1, ABORT_VALUE, VALUE / 10 != ABORT_VALUE>::get();
+    }
+  };
+
+  template<typename T, T VALUE, T ABORT_VALUE, int SUM>
+  struct StaticLog10<T, VALUE, SUM, ABORT_VALUE, false>
+  {
+    constexpr static int get() noexcept
+    {
+      return SUM;
+    }
+  };
+
+  template<typename T, int WIDTH, int CURRENT>
+  struct CharsInDigit
+  {
+    static constexpr int lower_bounds(T t) noexcept
+    {
+      if (Pow10<T, CURRENT + WIDTH / 2, 1>::get() - 1 < t)
+      {
+        return CharsInDigit<T, WIDTH - (WIDTH / 2 + 1), CURRENT + WIDTH / 2 + 1>::lower_bounds(t);
+      }
+      return CharsInDigit<T, WIDTH / 2, CURRENT>::lower_bounds(t);
+    }
+  };
+  template<typename T, int CURRENT>
+  struct CharsInDigit<T, 0, CURRENT>
+  {
+    static constexpr int lower_bounds(T ) noexcept
+    {
+      return CURRENT;
+    }
+  };
+  template<typename T, int CURRENT>
+  struct CharsInDigit<T, -1, CURRENT>
+  {
+    static constexpr int lower_bounds(T ) noexcept
+    {
+      return CURRENT;
+    }
+  };
+
+  template<typename T>
+  T iabs(T a)
+  {
+    if (std::is_unsigned<T>::value)
+      return a;
+    else
+      return a < T(0) ? -a : a;
+  }
+
+  template<typename T>
+  int count_chars(T t) noexcept
+  {
+    if (t < T(10))
+      return 1;
+    constexpr int maxChars = StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() + 1;
+    return CharsInDigit<T, maxChars, 0>::lower_bounds(iabs(t)) - 1;
+  }
+
   namespace ryu
   {
 #include "cache_ryu.h" //include cache table in namespace
@@ -423,95 +513,6 @@ namespace ft
       {
         shortest_base10 = b + 1;
       }
-    }
-
-    template<typename T, int COUNT, T SUM>
-    struct Pow10
-    {
-      static inline T get() noexcept
-      {
-        return Pow10<T, COUNT - 1, SUM * 10>::get();
-      }
-    };
-    template<typename T, T SUM>
-    struct Pow10<T, 1, SUM>
-    {
-      static inline T get() noexcept
-      {
-        return SUM;
-      }
-    };
-    template<typename T, T SUM>
-    struct Pow10<T, 0, SUM>
-    {
-      static inline T get() noexcept
-      {
-        return 1;
-      }
-    };
-
-    template<typename T, T VALUE, int SUM, T ABORT_VALUE, bool CONTINUE>
-    struct StaticLog10
-    {
-      constexpr static int get() noexcept
-      {
-        return StaticLog10<T, VALUE / 10, SUM + 1, ABORT_VALUE, VALUE / 10 != ABORT_VALUE>::get();
-      }
-    };
-
-    template<typename T, T VALUE, T ABORT_VALUE, int SUM>
-    struct StaticLog10<T, VALUE, SUM, ABORT_VALUE, false>
-    {
-      constexpr static int get() noexcept
-      {
-        return SUM;
-      }
-    };
-
-    template<typename T, int WIDTH, int CURRENT>
-    struct CharsInDigit 
-    {
-      static constexpr int upper_bounds(T t) noexcept
-      {
-        if (WIDTH > 0)
-        {
-          if (t >= Pow10<T, CURRENT + WIDTH / 2, 1>::get())
-          {
-            return CharsInDigit<T, WIDTH / 2, CURRENT + WIDTH / 2 + 1>::upper_bounds(t);
-          }
-          else
-          {
-            return CharsInDigit<T, WIDTH / 2, CURRENT>::upper_bounds(t);
-          }
-        }
-        return 0;
-      }
-    };
-    template<typename T, int CURRENT>
-    struct CharsInDigit<T, 0, CURRENT>
-    {
-      static constexpr int upper_bounds(T t) noexcept
-      {
-        return CURRENT;
-      }
-    };
-
-    template<typename T>
-    T iabs(T a)
-    {
-      if (std::is_unsigned<T>::value)
-        return a;
-      else
-        return a < T(0) ? -a : a;
-    }
-
-    template<typename T>
-    int count_chars(T t) noexcept
-    {
-      if (t == T(0))
-        return 1;
-      constexpr int maxChars = StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() - 1;
-      return CharsInDigit<T, maxChars, 0>::upper_bounds(iabs(t)) - 1;
     }
 
     template<typename T>
@@ -608,11 +609,11 @@ namespace ft
       return ret[index];
     }
 
-    uint64_t pow_int(int n, int exp)
+    inline uint64_t pow_int(int n, int exp)
     {
       if (!exp)
         return 1;
-      uint64_t ret = n;
+      uint64_t ret = uint64_t(n);
       for (int i = 0; i < exp; i++)
       {
         ret *= ret;
@@ -855,7 +856,7 @@ namespace ft
       else
       {
         if (parsedString.significand_digit_count < 18)
-          parsedString.significand = parsedString.significand * 10 + (*current - '0');
+          parsedString.significand = parsedString.significand * uint64_t(10) + uint64_t(*current - '0');
         parsedString.significand_digit_count++;
       }
       current++;
@@ -993,7 +994,7 @@ namespace ft
       auto decoded = decode(f);
       std::string ret;
       ret.resize(25);
-      ret.resize(to_string_int(decoded, &ret[0], int(ret.size())));
+      ret.resize(size_t(to_string_int(decoded, &ret[0], int(ret.size()))));
       return ret;
     }
 

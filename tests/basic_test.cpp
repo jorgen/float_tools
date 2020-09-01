@@ -151,11 +151,11 @@ TEST_CASE("random_numbers", "[roundtrip]")
 {
   uint64_t range = UINT64_C(0x7FEFFFFFFFFFFFFF) - 1;
   uint64_t max_values_pr_thread = uint64_t(1) << 15;
-  uint64_t random_step_values = 509;
+  int random_step_values = 509;
   auto thread_count = std::thread::hardware_concurrency();
   uint64_t range_pr_thread = range / thread_count;
 
-  auto task = [range_pr_thread, max_values_pr_thread](uint64_t range_start, const std::vector<uint64_t> &offsets, bool negative, bool print_progress = false)
+  auto task = [range_pr_thread, max_values_pr_thread](uint64_t range_start, const std::vector<int> &offsets, bool negative, bool print_progress = false)
   {
     uint64_t double_value;
     double double_number;
@@ -175,7 +175,7 @@ TEST_CASE("random_numbers", "[roundtrip]")
     {
       if (print_progress)
       {
-        int new_percentage = int(double(i) / range_pr_thread * 100.0);
+        int new_percentage = int(double(i) / double(range_pr_thread) * 100.0);
         if (new_percentage != percentage)
         {
           percentage = new_percentage;
@@ -196,7 +196,7 @@ TEST_CASE("random_numbers", "[roundtrip]")
       REQUIRE(converted_value == double_value);
 
       step_index++;
-      i += offsets[step_index % offsets.size()] * scale_to_get_avrage_step;
+      i += uint64_t(offsets[step_index % offsets.size()]) * scale_to_get_avrage_step;
     }
     fmt::print(stderr, "Thread ran for {} iterations\n", step_index);
   };
@@ -204,20 +204,20 @@ TEST_CASE("random_numbers", "[roundtrip]")
   std::vector<std::thread> threads;
   for (uint32_t i = 0; i < thread_count; i++)
   {
-    auto t_task = [range_pr_thread, task, random_step_values](int i)
+    auto t_task = [range_pr_thread, task, random_step_values](int local_i)
     {
-      std::vector<uint64_t> offsets;
-      offsets.reserve(random_step_values);
+      std::vector<int> offsets;
+      offsets.reserve(size_t(random_step_values));
       for (int s = 0; s < random_step_values; s++)
       {
         offsets.push_back(s);
       }
       std::random_device rd;
-      std::mt19937 g(rd() + i);
+      std::mt19937 g(rd() + std::random_device::result_type(local_i));
       std::shuffle(offsets.begin(), offsets.end(), g);
       
-      uint64_t range_start = i * range_pr_thread;
-      task(range_start, offsets, false, i == 0);
+      uint64_t range_start = uint64_t(local_i) * range_pr_thread;
+      task(range_start, offsets, false, local_i == 0);
     };
     threads.emplace_back(t_task, i);
   }
@@ -230,20 +230,20 @@ TEST_CASE("random_numbers", "[roundtrip]")
 
   for (uint32_t i = 0; i < thread_count; i++)
   {
-    auto t_task = [range_pr_thread, task, random_step_values](int i)
+    auto t_task = [range_pr_thread, task, random_step_values](int local_i)
     {
-      std::vector<uint64_t> offsets;
-      offsets.reserve(random_step_values);
+      std::vector<int> offsets;
+      offsets.reserve(size_t(random_step_values));
       for (int s = 0; s < random_step_values; s++)
       {
         offsets.push_back(s);
       }
       std::random_device rd;
-      std::mt19937 g(rd() + i);
+      std::mt19937 g(rd() + std::random_device::result_type(local_i));
       std::shuffle(offsets.begin(), offsets.end(), g);
       
-      uint64_t range_start = i * range_pr_thread;
-      task(range_start, offsets, true, i == 0);
+      uint64_t range_start = uint64_t(local_i) * range_pr_thread;
+      task(range_start, offsets, true, local_i == 0);
     };
     threads.emplace_back(t_task, i);
   }
@@ -258,7 +258,7 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
 {
   uint32_t range = uint32_t(0x7f7fffff) - 1;
   uint32_t max_values_pr_thread = uint32_t(1) << 15;
-  uint32_t random_step_values = 509;
+  int random_step_values = 509;
   auto thread_count = std::thread::hardware_concurrency();
   uint32_t range_pr_thread = range / thread_count;
 
@@ -282,7 +282,7 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
     {
       if (print_progress)
       {
-        int new_percentage = int(float(i) / range_pr_thread * 100.0);
+        int new_percentage = int(float(i) / float(range_pr_thread) * 100.0f);
         if (new_percentage != percentage)
         {
           percentage = new_percentage;
@@ -311,20 +311,20 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
   std::vector<std::thread> threads;
   for (uint32_t i = 0; i < thread_count; i++)
   {
-    auto t_task = [range_pr_thread, task, random_step_values](int i)
+    auto t_task = [range_pr_thread, task, random_step_values](int local_i)
     {
       std::vector<uint32_t> offsets;
-      offsets.reserve(random_step_values);
+      offsets.reserve(size_t(random_step_values));
       for (int s = 0; s < random_step_values; s++)
       {
-        offsets.push_back(s);
+        offsets.push_back(uint32_t(s));
       }
       std::random_device rd;
-      std::mt19937 g(rd() + i);
+      std::mt19937 g(rd() + std::random_device::result_type(local_i));
       std::shuffle(offsets.begin(), offsets.end(), g);
       
-      uint32_t range_start = i * range_pr_thread;
-      task(range_start, offsets, false, i == 0);
+      uint32_t range_start = uint32_t(local_i) * range_pr_thread;
+      task(range_start, offsets, false, local_i == 0);
     };
     threads.emplace_back(t_task, i);
   }
@@ -337,20 +337,20 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
 
   for (uint32_t i = 0; i < thread_count; i++)
   {
-    auto t_task = [range_pr_thread, task, random_step_values](int i)
+    auto t_task = [range_pr_thread, task, random_step_values](int local_i)
     {
       std::vector<uint32_t> offsets;
-      offsets.reserve(random_step_values);
-      for (int s = 0; s < random_step_values; s++)
+      offsets.reserve(size_t(random_step_values));
+      for (int s = 0; s < int(random_step_values); s++)
       {
-        offsets.push_back(s);
+        offsets.push_back(uint32_t(s));
       }
       std::random_device rd;
-      std::mt19937 g(rd() + i);
+      std::mt19937 g(rd() + std::random_device::result_type(local_i));
       std::shuffle(offsets.begin(), offsets.end(), g);
       
-      uint32_t range_start = i * range_pr_thread;
-      task(range_start, offsets, true, i == 0);
+      uint32_t range_start = uint32_t(local_i) * range_pr_thread;
+      task(range_start, offsets, true, local_i == 0);
     };
     threads.emplace_back(t_task, i);
   }
@@ -410,7 +410,7 @@ TEST_CASE("basic_str_to_float", "[float tests]")
 
 TEST_CASE("roundtrip_all_floats", "[float tests]")
 {
-  return;
+  /*
   auto thread_count = std::thread::hardware_concurrency();
   uint32_t range_pr_thread = (uint32_t(0x7f7fffff) + 1) / thread_count;
 
@@ -450,10 +450,10 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
       std::vector<std::thread> threads;
       for (uint32_t i = 0; i < thread_count; i++)
       {
-        auto t_task = [range_pr_thread, task](uint32_t i)
+        auto t_task = [range_pr_thread, task](uint32_t local_i)
         {
-          uint32_t range_start = i * range_pr_thread;
-          task(range_start, i == 0);
+          uint32_t range_start = local_i * range_pr_thread;
+          task(range_start, local_i == 0);
         };
         threads.emplace_back(t_task, i);
       }
@@ -505,10 +505,10 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
     std::vector<std::thread> threads;
     for (uint32_t i = 0; i < thread_count; i++)
     {
-      auto t_task = [range_pr_thread, task](uint32_t i)
+      auto t_task = [range_pr_thread, task](uint32_t local_i)
       {
-        uint32_t range_start = i * range_pr_thread;
-        task(range_start, i == 0);
+        uint32_t range_start = local_i * range_pr_thread;
+        task(range_start, local_i == 0);
       };
       threads.emplace_back(t_task, i);
     }
@@ -523,6 +523,7 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
     task(0, true);
   }
   fmt::print(stderr, "\n");
+  */
 }
 
 static void assert_float(uint32_t float_value)
