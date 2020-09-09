@@ -16,52 +16,52 @@
 TEST_CASE("regular_doubles", "[ryu]")
 {
   std::string check_str = ft::ryu::to_string(1.0);
-  REQUIRE(check_str == "1e0");
+  REQUIRE(check_str == "1.0");
   check_str = ft::ryu::to_string(1.1);
-  REQUIRE(check_str == "1.1e0");
+  REQUIRE(check_str == "1.1");
   check_str = ft::ryu::to_string(22.1);
-  REQUIRE(check_str == "2.21e1");
+  REQUIRE(check_str == "22.1");
   check_str = ft::ryu::to_string(333.1);
-  REQUIRE(check_str == "3.331e2");
+  REQUIRE(check_str == "333.1");
   check_str = ft::ryu::to_string(22.4444);
-  REQUIRE(check_str == "2.24444e1");
+  REQUIRE(check_str == "22.4444");
   check_str = ft::ryu::to_string(0.1);
-  REQUIRE(check_str == "1e-1");
+  REQUIRE(check_str == "0.1");
   check_str = ft::ryu::to_string(0.22);
-  REQUIRE(check_str == "2.2e-1");
+  REQUIRE(check_str == "0.22");
   check_str = ft::ryu::to_string(1.22);
-  REQUIRE(check_str == "1.22e0");
+  REQUIRE(check_str == "1.22");
   check_str = ft::ryu::to_string(22.22);
-  REQUIRE(check_str == "2.222e1");
+  REQUIRE(check_str == "22.22");
   check_str = ft::ryu::to_string(std::numeric_limits<double>::min());
   REQUIRE(check_str == "2.2250738585072014e-308");
   check_str = ft::ryu::to_string(std::numeric_limits<double>::max());
   REQUIRE(check_str == "1.7976931348623157e308");
   check_str = ft::ryu::to_string(0.0);
-  REQUIRE(check_str == "0e0");
+  REQUIRE(check_str == "0.0");
 
 }
 
 TEST_CASE("small test negative", "[ryu]")
 {
   std::string check_str = ft::ryu::to_string(-1.0);
-  REQUIRE(check_str == "-1e0");
+  REQUIRE(check_str == "-1.0");
   check_str = ft::ryu::to_string(-1.1);
-  REQUIRE(check_str == "-1.1e0");
+  REQUIRE(check_str == "-1.1");
   check_str = ft::ryu::to_string(-22.1);
-  REQUIRE(check_str == "-2.21e1");
+  REQUIRE(check_str == "-22.1");
   check_str = ft::ryu::to_string(-333.1);
-  REQUIRE(check_str == "-3.331e2");
+  REQUIRE(check_str == "-333.1");
   check_str = ft::ryu::to_string(-22.4444);
-  REQUIRE(check_str == "-2.24444e1");
+  REQUIRE(check_str == "-22.4444");
   check_str = ft::ryu::to_string(-0.1);
-  REQUIRE(check_str == "-1e-1");
+  REQUIRE(check_str == "-0.1");
   check_str = ft::ryu::to_string(-0.22);
-  REQUIRE(check_str == "-2.2e-1");
+  REQUIRE(check_str == "-0.22");
   check_str = ft::ryu::to_string(-1.22);
-  REQUIRE(check_str == "-1.22e0");
+  REQUIRE(check_str == "-1.22");
   check_str = ft::ryu::to_string(-22.22);
-  REQUIRE(check_str == "-2.222e1");
+  REQUIRE(check_str == "-22.22");
   check_str = ft::ryu::to_string(-std::numeric_limits<double>::min());
   REQUIRE(check_str == "-2.2250738585072014e-308");
   check_str = ft::ryu::to_string(-std::numeric_limits<double>::max());
@@ -420,6 +420,7 @@ TEST_CASE("problematic_values", "[roundtrip]")
   assert_double(UINT64_C(1500370978));
   assert_double(UINT64_C(4611686019697841006));
   assert_double(1297037298273091867);
+  assert_double(UINT64_C(4812201603180978432));
   double some_value_number = -1.1234e-10;
   uint64_t some_value;
   memcpy(&some_value, &some_value_number, sizeof(some_value));

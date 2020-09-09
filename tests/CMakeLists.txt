@@ -6,6 +6,7 @@ macro(create_test name)
     catch_main.cpp
     basic_test.cpp
     count_chars_test.cpp
+    print_test.cpp
     )
 
   target_link_libraries(${name} fmt::fmt)
