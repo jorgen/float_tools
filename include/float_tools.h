@@ -925,7 +925,7 @@ namespace ft
     {
       return parsed.negative ? T(-0.0) : T(0.0);
     }
-    if (parsed.exp == 0 && parsed.significand == 0)
+    if (parsed.significand == 0)
     {
       return parsed.negative ? T(-0.0) : T(0.0);
     }

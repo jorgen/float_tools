@@ -13,7 +13,7 @@
 
 #include <fmt/printf.h>
 
-TEST_CASE("small test", "[ryu]")
+TEST_CASE("regular_doubles", "[ryu]")
 {
   std::string check_str = ft::ryu::to_string(1.0);
   REQUIRE(check_str == "1e0");
@@ -37,6 +37,9 @@ TEST_CASE("small test", "[ryu]")
   REQUIRE(check_str == "2.2250738585072014e-308");
   check_str = ft::ryu::to_string(std::numeric_limits<double>::max());
   REQUIRE(check_str == "1.7976931348623157e308");
+  check_str = ft::ryu::to_string(0.0);
+  REQUIRE(check_str == "0e0");
+
 }
 
 TEST_CASE("small test negative", "[ryu]")
@@ -91,6 +94,34 @@ TEST_CASE("basic convert", "[ryu]")
   double three = 0.3;
   double d = ft::convertToNumber<double>(parsedString);
   REQUIRE(d == three);
+}
+
+TEST_CASE("zero_convert", "[float tools]")
+{
+
+  const char* end_ptr;
+  std::string zero = "0";
+  double d;
+  auto result = ft::to_double(zero.data(), zero.size(), d, end_ptr);
+  uint64_t test;
+  memcpy(&test, &d, sizeof(test));
+  REQUIRE(result == ft::parse_string_error::ok);
+  REQUIRE(test == uint64_t(0));
+
+  zero = "-0";
+  result = ft::to_double(zero.data(), zero.size(), d, end_ptr);
+  memcpy(&test, &d, sizeof(test));
+
+  REQUIRE(result == ft::parse_string_error::ok);
+  REQUIRE(test == (uint64_t(1)<<63));
+  
+  zero = "0.0";
+  result = ft::to_double(zero.data(), zero.size(), d, end_ptr);
+  memcpy(&test, &d, sizeof(test));
+
+  REQUIRE(result == ft::parse_string_error::ok);
+  REQUIRE(test == (uint64_t(0)));
+
 }
 
 TEST_CASE("parse_convert", "[float tools]")
