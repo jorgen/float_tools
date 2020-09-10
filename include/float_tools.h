@@ -257,6 +257,18 @@ namespace ft
   };
 
   template<typename T>
+  inline T make_zero(bool negative)
+  {
+    using uint_ft = typename float_info<T>::uint_alias;
+    uint_ft tmp = 0;
+    if (negative)
+      tmp = uint_ft(1) << ((sizeof(T) * 8) - 1);
+    T ret;
+    memcpy(&ret, &tmp, sizeof(ret));
+    return ret;
+  }
+  
+  template<typename T>
   inline T make_inf(bool negative)
   {
     using uint_ft = typename float_info<T>::uint_alias;
@@ -923,11 +935,11 @@ namespace ft
     }
     else if (base10exponent < float_info<T>::min_base10_exponent())
     {
-      return parsed.negative ? T(-0.0) : T(0.0);
+      return make_zero<T>(parsed.negative);
     }
     if (parsed.significand == 0)
     {
-      return parsed.negative ? T(-0.0) : T(0.0);
+      return make_zero<T>(parsed.negative);
     }
     using uint_conversion_type = typename float_info<T>::str_to_float_conversion_type;
     uint_conversion_type a;
