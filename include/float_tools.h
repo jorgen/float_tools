@@ -327,7 +327,7 @@ namespace ft
   }
 
   template<typename I, typename P>
-  constexpr I find_if(I first, I last, P p)
+  I find_if(I first, I last, P p)
   {
     for (; first != last; ++first) {
       if (p(*first)) {
