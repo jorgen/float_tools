@@ -261,8 +261,7 @@ namespace ft
   {
     using uint_ft = typename float_info<T>::uint_alias;
     uint_ft tmp = 0;
-    if (negative)
-      tmp = uint_ft(1) << ((sizeof(T) * 8) - 1);
+    tmp = uint_ft(negative) << ((sizeof(T) * 8) - 1);
     T ret;
     memcpy(&ret, &tmp, sizeof(ret));
     return ret;
@@ -274,10 +273,9 @@ namespace ft
     using uint_ft = typename float_info<T>::uint_alias;
     uint_ft tmp = (uint_ft(1) << float_info<T>::exponent_width()) - 1;
     tmp <<= float_info<T>::mentissa_width();
-    if (negative)
-      tmp |= uint_ft(1) << ((sizeof(T) * 8) - 1);
+    tmp += uint_ft(negative) << ((sizeof(T) * 8) - 1);
     T ret;
-    memcpy(&ret, &tmp, sizeof(tmp));
+    memcpy(&ret, &tmp, sizeof(ret));
     return ret;
   }
 
@@ -290,10 +288,9 @@ namespace ft
     uint_ft tmp = (uint_ft(1) << float_info<T>::exponent_width()) - 1;
     tmp <<= float_info<T>::mentissa_width();
     tmp |= pos;
-    if (!positive)
-      tmp |= uint_ft(1) << ((sizeof(T) * 8) - 1);
+    tmp |= uint_ft(!positive) << ((sizeof(T) * 8) - 1);
     T ret;
-    memcpy(&ret, &tmp, sizeof(tmp));
+    memcpy(&ret, &tmp, sizeof(ret));
     return ret;
   }
 
@@ -396,7 +393,7 @@ namespace ft
   template<typename T, int WIDTH, int CURRENT>
   struct CharsInDigit
   {
-    static constexpr int lower_bounds(T t) noexcept
+    static int lower_bounds(T t) noexcept
     {
       if (Pow10<T, CURRENT + WIDTH / 2, 1>::get() - 1 < t)
       {
@@ -408,7 +405,7 @@ namespace ft
   template<typename T, int CURRENT>
   struct CharsInDigit<T, 0, CURRENT>
   {
-    static constexpr int lower_bounds(T ) noexcept
+    static int lower_bounds(T ) noexcept
     {
       return CURRENT;
     }
@@ -416,7 +413,7 @@ namespace ft
   template<typename T, int CURRENT>
   struct CharsInDigit<T, -1, CURRENT>
   {
-    static constexpr int lower_bounds(T ) noexcept
+    static int lower_bounds(T ) noexcept
     {
       return CURRENT;
     }
@@ -530,6 +527,7 @@ namespace ft
     template<typename T>
     inline uint64_t multiply_and_shift(uint64_t a, const uint64_t* b, int shift_right, bool round_up)
     {
+      return 0;
     }
     template<>
     inline uint64_t multiply_and_shift<double>(uint64_t a, const uint64_t *b, int shift_right, bool round_up)

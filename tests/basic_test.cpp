@@ -161,7 +161,7 @@ TEST_CASE("parse_convert_extremes", "[float tools]")
   auto result = ft::to_double(too_large.data(), too_large.size(), d, end_ptr);
   uint64_t value;
   memcpy(&value, &d, sizeof(d));
-  REQUIRE(std::isinf(d));
+  REQUIRE(ft::is_inf(d));
 
   std::string just_large = "1.7976931348623157e308";
   result = ft::to_double(just_large.data(), just_large.size(), d, end_ptr);
