@@ -420,12 +420,15 @@ namespace ft
   };
 
   template<typename T>
-  T iabs(T a)
+  T iabs(typename std::enable_if<std::is_unsigned<T>::value, T>::type a)
   {
-    if (std::is_unsigned<T>::value)
-      return a;
-    else
-      return a < T(0) ? -a : a;
+    return a;
+  }
+
+  template<typename T>
+  T iabs(typename std::enable_if<std::is_signed<T>::value, T>::type a)
+  {
+    return a < T(0) ? -a : a;
   }
 
   template<typename T>
@@ -434,7 +437,7 @@ namespace ft
     if (t < T(10))
       return 1;
     constexpr int maxChars = StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() + 1;
-    return CharsInDigit<T, maxChars, 0>::lower_bounds(iabs(t)) - 1;
+    return CharsInDigit<T, maxChars, 0>::lower_bounds(iabs<T>(t)) - 1;
   }
 
   namespace ryu
