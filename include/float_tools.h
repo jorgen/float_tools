@@ -1041,6 +1041,34 @@ namespace ft
     return parse_string_error::ok;
   }
 
+  inline uint64_t getPow10(uint32_t pow)
+  {
+    static uint64_t data[] =
+    {
+      UINT64_C(1),
+      UINT64_C(10),
+      UINT64_C(100),
+      UINT64_C(1000),
+      UINT64_C(10000),
+      UINT64_C(100000),
+      UINT64_C(1000000),
+      UINT64_C(10000000),
+      UINT64_C(100000000),
+      UINT64_C(1000000000),
+      UINT64_C(10000000000),
+      UINT64_C(100000000000),
+      UINT64_C(1000000000000),
+      UINT64_C(10000000000000),
+      UINT64_C(100000000000000),
+      UINT64_C(1000000000000000),
+      UINT64_C(10000000000000000),
+      UINT64_C(100000000000000000),
+      UINT64_C(1000000000000000000),
+      UINT64_C(10000000000000000000)
+    };
+    return data[pow];
+  }
+
   template<typename T>
   inline T convertToNumber(const parsed_string& parsed)
   {
@@ -1057,6 +1085,19 @@ namespace ft
     {
       return make_zero<T>(parsed.negative);
     }
+
+#if 1
+    if (parsed.significand < ((uint64_t(1) << 53))
+      && iabs<int>(parsed.exp) < count_chars((uint64_t(1) << 53)))
+    {
+      double ds(parsed.significand);
+      double de(getPow10(iabs<int>(parsed.exp)));
+      if (parsed.negative)
+        ds = -ds;
+      return parsed.exp < 0 ? T(ds / de) : T(ds * de);
+    }
+#endif
+
     using uint_conversion_type = typename float_info<T>::str_to_float_conversion_type;
     uint_conversion_type a;
     uint_conversion_type b;

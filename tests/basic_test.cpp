@@ -10,6 +10,7 @@
 #include <float_tools.h>
 
 #include <thread>
+#include <chrono>
 
 #include <fmt/printf.h>
 
@@ -442,7 +443,9 @@ TEST_CASE("basic_str_to_float", "[float tests]")
 
 TEST_CASE("roundtrip_all_floats", "[float tests]")
 {
-  /*
+#if 0  
+  auto start = std::chrono::system_clock::now();
+
   auto thread_count = std::thread::hardware_concurrency();
   uint32_t range_pr_thread = (uint32_t(0x7f7fffff) + 1) / thread_count;
 
@@ -555,7 +558,11 @@ TEST_CASE("roundtrip_all_floats", "[float tests]")
     task(0, true);
   }
   fmt::print(stderr, "\n");
-  */
+  auto end = std::chrono::system_clock::now();
+  auto elapsed = end - start;
+  std::chrono::seconds seconds_elapsed = std::chrono::duration_cast<std::chrono::seconds>(elapsed);
+  fmt::print(stderr, "Time for roundtripping all floats is: {} seconds.\n", seconds_elapsed.count());
+#endif  
 }
 
 static void assert_float(uint32_t float_value)
