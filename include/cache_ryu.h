@@ -6,8 +6,8 @@ struct cache_values
 template<>
 struct cache_values<double>
 {
-  constexpr static const int b0 = 124;
-  constexpr static const int b1 = 124;
+  FT_CONSTEXPR static const int b0 = 124;
+  FT_CONSTEXPR static const int b1 = 124;
 
   static const uint64_t *less_than(int index)
   {
@@ -338,8 +338,8 @@ struct cache_values<double>
 template<>
 struct cache_values<float>
 {
-  constexpr static const int b0 = 59;
-  constexpr static const int b1 = 61;
+  FT_CONSTEXPR static const int b0 = 59;
+  FT_CONSTEXPR static const int b1 = 61;
 
   static const uint64_t *less_than(int index)
   {
