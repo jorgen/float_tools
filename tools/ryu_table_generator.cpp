@@ -186,8 +186,8 @@ namespace ryu
 
       fmt::print("template<>\n");
       fmt::print("struct cache_values<{}>\n{{\n", float_name);
-      fmt::print("  FT_CONSTEXPR static const int b0 = {};\n", b0);
-      fmt::print("  FT_CONSTEXPR static const int b1 = {};\n\n", b1);
+      fmt::print("  constexpr static const int b0 = {};\n", b0);
+      fmt::print("  constexpr static const int b1 = {};\n\n", b1);
       fmt::print("  static const uint64_t *less_than(int index)\n  {{\n");
       uint_for_float_converter<T>::print_cache_array_declaration(lt.size());
       for (int i = 0; i < lt.size(); i++)

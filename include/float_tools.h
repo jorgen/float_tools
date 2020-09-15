@@ -29,26 +29,6 @@
 
 #include <stdint.h>
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4503)
-#if _MSC_VER > 1800
-#define FT_CONSTEXPR constexpr
-#define FT_HAS_CONSTEXPR 1
-#define FT_NOEXCEPT noexcept
-#define FT_HAS_NOEXCEPT 1
-#else
-#define FT_CONSTEXPR
-#define FT_HAS_CONSTEXPR 0
-#define FT_NOEXCEPT
-#define FT_HAS_NOEXCEPT 0
-#endif
-#else
-#define FT_CONSTEXPR constexpr
-#define FT_HAS_CONSTEXPR 1
-#define FT_NOEXCEPT noexcept
-#define FT_HAS_NOEXCEPT 1
-#endif
-
 namespace ft
 {
   struct float_base10
@@ -75,8 +55,8 @@ namespace ft
     illegal_exponent_value
   };
 
-  FT_CONSTEXPR static inline uint64_t high(uint64_t x) { return x >> 32; }
-  FT_CONSTEXPR static inline uint64_t low(uint64_t x) { return x & ~uint32_t(0); }
+  constexpr static inline uint64_t high(uint64_t x) { return x >> 32; }
+  constexpr static inline uint64_t low(uint64_t x) { return x & ~uint32_t(0); }
 
   template<int shift = 1>
   inline void left_shift(uint64_t(&a)[2])
@@ -154,24 +134,24 @@ namespace ft
   template<>
   struct float_info<double>
   {
-    static inline FT_CONSTEXPR int mentissa_width() FT_NOEXCEPT { return 52; }
-    static inline FT_CONSTEXPR int exponent_width() FT_NOEXCEPT { return 11; }
-    static inline FT_CONSTEXPR int bias() FT_NOEXCEPT { return (1 << (exponent_width() - 1)) - 1; }
-    static inline FT_CONSTEXPR int max_base10_exponent() FT_NOEXCEPT { return 308; }
-    static inline FT_CONSTEXPR int min_base10_exponent() FT_NOEXCEPT { return -324; }
-    static inline FT_CONSTEXPR int max_double_5_pow_q() FT_NOEXCEPT { return 23; }//floor(log_5(1 << (mentissawidth + 2)))
-    static inline FT_CONSTEXPR int max_double_2_pow_q() FT_NOEXCEPT { return 54; }//floor(log_2(1 << (mentissawidth + 2)))
+    static inline constexpr int mentissa_width() noexcept { return 52; }
+    static inline constexpr int exponent_width() noexcept { return 11; }
+    static inline constexpr int bias() noexcept { return (1 << (exponent_width() - 1)) - 1; }
+    static inline constexpr int max_base10_exponent() noexcept { return 308; }
+    static inline constexpr int min_base10_exponent() noexcept { return -324; }
+    static inline constexpr int max_double_5_pow_q() noexcept { return 23; }//floor(log_5(1 << (mentissawidth + 2)))
+    static inline constexpr int max_double_2_pow_q() noexcept { return 54; }//floor(log_2(1 << (mentissawidth + 2)))
 
 
     using str_to_float_conversion_type = uint64_t[2];
     using uint_alias = uint64_t;
-    static inline FT_CONSTEXPR int str_to_float_binary_exponen_init() FT_NOEXCEPT { return  64 + 60; }
-    static inline FT_CONSTEXPR uint64_t str_to_float_mask() FT_NOEXCEPT { return  ~((uint64_t(1) << 60) - 1); }
-    static inline FT_CONSTEXPR uint64_t str_to_float_top_bit_in_mask() FT_NOEXCEPT { return uint64_t(1) << 63; }
-    static inline FT_CONSTEXPR int str_to_float_expanded_length() FT_NOEXCEPT { return 19; }
-    static inline FT_CONSTEXPR bool conversion_type_has_mask(const str_to_float_conversion_type& a) FT_NOEXCEPT { return a[1] & str_to_float_mask(); }
-    static inline FT_CONSTEXPR bool conversion_type_has_top_bit_in_mask(const str_to_float_conversion_type& a) FT_NOEXCEPT { return a[1] & str_to_float_top_bit_in_mask(); }
-    static inline FT_CONSTEXPR bool conversion_type_is_null(const str_to_float_conversion_type& a) FT_NOEXCEPT { return !a[0] && !a[1]; }
+    static inline constexpr int str_to_float_binary_exponen_init() noexcept { return  64 + 60; }
+    static inline constexpr uint64_t str_to_float_mask() noexcept { return  ~((uint64_t(1) << 60) - 1); }
+    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return uint64_t(1) << 63; }
+    static inline constexpr int str_to_float_expanded_length() noexcept { return 19; }
+    static inline constexpr bool conversion_type_has_mask(const str_to_float_conversion_type& a) noexcept { return a[1] & str_to_float_mask(); }
+    static inline constexpr bool conversion_type_has_top_bit_in_mask(const str_to_float_conversion_type& a) noexcept { return a[1] & str_to_float_top_bit_in_mask(); }
+    static inline constexpr bool conversion_type_is_null(const str_to_float_conversion_type& a) noexcept { return !a[0] && !a[1]; }
     static inline void copy_denormal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, double& to_digit)
     {
       uint64_t q = a[1];
@@ -229,23 +209,23 @@ namespace ft
   template<>
   struct float_info<float>
   {
-    static inline FT_CONSTEXPR int mentissa_width() FT_NOEXCEPT { return 23; }
-    static inline FT_CONSTEXPR int exponent_width() FT_NOEXCEPT { return 8; }
-    static inline FT_CONSTEXPR int bias() FT_NOEXCEPT { return (1 << (exponent_width() - 1)) - 1; }
-    static inline FT_CONSTEXPR int max_base10_exponent() FT_NOEXCEPT { return 38; }
-    static inline FT_CONSTEXPR int min_base10_exponent() FT_NOEXCEPT { return -45; }
-    static inline FT_CONSTEXPR int max_double_5_pow_q() FT_NOEXCEPT { return 10; } //floor(log_5(1 << (mentissawidth + 2)))
-    static inline FT_CONSTEXPR int max_double_2_pow_q() FT_NOEXCEPT { return 25; } //floor(log_2(1 << (mentissawidth + 2)))
+    static inline constexpr int mentissa_width() noexcept { return 23; }
+    static inline constexpr int exponent_width() noexcept { return 8; }
+    static inline constexpr int bias() noexcept { return (1 << (exponent_width() - 1)) - 1; }
+    static inline constexpr int max_base10_exponent() noexcept { return 38; }
+    static inline constexpr int min_base10_exponent() noexcept { return -45; }
+    static inline constexpr int max_double_5_pow_q() noexcept { return 10; } //floor(log_5(1 << (mentissawidth + 2)))
+    static inline constexpr int max_double_2_pow_q() noexcept { return 25; } //floor(log_2(1 << (mentissawidth + 2)))
 
     using str_to_float_conversion_type = uint64_t;
     using uint_alias = uint32_t;
-    static inline FT_CONSTEXPR int str_to_float_binary_exponen_init() FT_NOEXCEPT { return 60; }
-    static inline FT_CONSTEXPR uint64_t str_to_float_mask() FT_NOEXCEPT { return  ~((uint64_t(1) << 60) - 1); }
-    static inline FT_CONSTEXPR uint64_t str_to_float_top_bit_in_mask() FT_NOEXCEPT { return uint64_t(1) << 63; }
-    static inline FT_CONSTEXPR int str_to_float_expanded_length() FT_NOEXCEPT { return 10; }
-    static inline FT_CONSTEXPR bool conversion_type_has_mask(const str_to_float_conversion_type& a) FT_NOEXCEPT { return a & str_to_float_mask(); }
-    static inline FT_CONSTEXPR bool conversion_type_has_top_bit_in_mask(const str_to_float_conversion_type& a) FT_NOEXCEPT { return a & str_to_float_top_bit_in_mask(); }
-    static inline FT_CONSTEXPR bool conversion_type_is_null(const str_to_float_conversion_type& a) FT_NOEXCEPT { return !a; }
+    static inline constexpr int str_to_float_binary_exponen_init() noexcept { return 60; }
+    static inline constexpr uint64_t str_to_float_mask() noexcept { return  ~((uint64_t(1) << 60) - 1); }
+    static inline constexpr uint64_t str_to_float_top_bit_in_mask() noexcept { return uint64_t(1) << 63; }
+    static inline constexpr int str_to_float_expanded_length() noexcept { return 10; }
+    static inline constexpr bool conversion_type_has_mask(const str_to_float_conversion_type& a) noexcept { return a & str_to_float_mask(); }
+    static inline constexpr bool conversion_type_has_top_bit_in_mask(const str_to_float_conversion_type& a) noexcept { return a & str_to_float_top_bit_in_mask(); }
+    static inline constexpr bool conversion_type_is_null(const str_to_float_conversion_type& a) noexcept { return !a; }
     static inline void copy_denormal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, float &to_digit)
     {
       uint64_t q = a;
@@ -372,7 +352,7 @@ namespace ft
   template<typename T, int COUNT, T SUM>
   struct Pow10
   {
-    static inline T get() FT_NOEXCEPT
+    static inline T get() noexcept
     {
       return Pow10<T, COUNT - 1, SUM * T(10)>::get();
     }
@@ -380,7 +360,7 @@ namespace ft
   template<typename T, T SUM>
   struct Pow10<T, 1, SUM>
   {
-    static inline T get() FT_NOEXCEPT
+    static inline T get() noexcept
     {
       return SUM;
     }
@@ -388,7 +368,7 @@ namespace ft
   template<typename T, T SUM>
   struct Pow10<T, 0, SUM>
   {
-    static inline T get() FT_NOEXCEPT
+    static inline T get() noexcept
     {
       return 1;
     }
@@ -397,7 +377,7 @@ namespace ft
   template<typename T, T VALUE, int SUM, T ABORT_VALUE, bool CONTINUE>
   struct StaticLog10
   {
-    FT_CONSTEXPR static int get() FT_NOEXCEPT
+    constexpr static int get() noexcept
     {
       return StaticLog10<T, VALUE / 10, SUM + 1, ABORT_VALUE, VALUE / 10 != ABORT_VALUE>::get();
     }
@@ -406,7 +386,7 @@ namespace ft
   template<typename T, T VALUE, T ABORT_VALUE, int SUM>
   struct StaticLog10<T, VALUE, SUM, ABORT_VALUE, false>
   {
-    FT_CONSTEXPR static int get() FT_NOEXCEPT
+    constexpr static int get() noexcept
     {
       return SUM;
     }
@@ -415,7 +395,7 @@ namespace ft
   template<typename T, int WIDTH, int CURRENT>
   struct CharsInDigit
   {
-    static int lower_bounds(T t) FT_NOEXCEPT
+    static int lower_bounds(T t) noexcept
     {
       if (Pow10<T, CURRENT + WIDTH / 2, 1>::get() - 1 < t)
       {
@@ -427,7 +407,7 @@ namespace ft
   template<typename T, int CURRENT>
   struct CharsInDigit<T, 0, CURRENT>
   {
-    static int lower_bounds(T ) FT_NOEXCEPT
+    static int lower_bounds(T ) noexcept
     {
       return CURRENT;
     }
@@ -435,7 +415,7 @@ namespace ft
   template<typename T, int CURRENT>
   struct CharsInDigit<T, -1, CURRENT>
   {
-    static int lower_bounds(T ) FT_NOEXCEPT
+    static int lower_bounds(T ) noexcept
     {
       return CURRENT;
     }
@@ -454,11 +434,11 @@ namespace ft
   }
 
   template<typename T>
-  int count_chars(T t) FT_NOEXCEPT
+  int count_chars(T t) noexcept
   {
     if (iabs<T>(t) < T(10))
       return 1;
-    FT_CONSTEXPR int maxChars = StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() + 1;
+    constexpr int maxChars = StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() + 1;
     return CharsInDigit<T, maxChars, 0>::lower_bounds(iabs<T>(t)) - 1;
   }
 
@@ -466,9 +446,9 @@ namespace ft
   {
 #include "cache_ryu.h" //include cache table in namespace
 
-    FT_CONSTEXPR static const double log_10_2 = 0.30102999566398114;
-    FT_CONSTEXPR static const double log_10_5 = 0.6989700043360189;
-    FT_CONSTEXPR static const double log_2_5 = 2.321928094887362;
+    constexpr static const double log_10_2 = 0.30102999566398114;
+    constexpr static const double log_10_5 = 0.6989700043360189;
+    constexpr static const double log_2_5 = 2.321928094887362;
 
     template<typename T>
     inline void normalize(int& exp, uint64_t& mentissa)
