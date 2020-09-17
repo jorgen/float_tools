@@ -1,3 +1,5 @@
+#include <float_tools.h>
+
 #include "catch.hpp"
 
 #include <stdint.h>
@@ -7,7 +9,6 @@
 
 #include <random>
 
-#include <float_tools.h>
 
 #include <thread>
 #include <chrono>

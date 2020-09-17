@@ -28,6 +28,10 @@
 #define FLOAT_TOOLS_H
 
 #include <stdint.h>
+#include <string>
+#include <type_traits>
+#include <cmath>
+#include <assert.h>
 
 namespace ft
 {
@@ -430,7 +434,12 @@ namespace ft
   template<typename T>
   T iabs(typename std::enable_if<std::is_signed<T>::value, T>::type a)
   {
-    return a < T(0) ? -a : a;
+    //this
+    if (a > 0)
+      return a;
+    if (a == std::numeric_limits<T>::min())
+      a++;
+    return -a;
   }
 
   template<typename T>
@@ -963,7 +972,7 @@ namespace ft
       }
       else
       {
-        if (parsedString.significand_digit_count < 18)
+        if (parsedString.significand_digit_count < 20)
           parsedString.significand = parsedString.significand * uint64_t(10) + uint64_t(*current - '0');
         parsedString.significand_digit_count++;
       }
@@ -1152,6 +1161,116 @@ namespace ft
       ret.resize(25);
       ret.resize(size_t(convert_parsed_to_buffer(decoded, &ret[0], int(ret.size()), float_info<T>::str_to_float_expanded_length())));
       return ret;
+    }
+  }
+
+  namespace integer
+  {
+    template<typename T>
+    inline int to_buffer(T integer, char *buffer, int buffer_size, int *digits_truncated = nullptr)
+    {
+      static_assert(std::is_integral<T>::value, "Tryint to convert non int to string");
+      int chars_to_write = ft::count_chars(integer);
+      char* target_buffer = buffer;
+      bool negative = false;
+      if (std::is_signed<T>::value)
+      {
+        if (integer < 0)
+        {
+          target_buffer[0] = '-';
+          target_buffer++;
+          buffer_size--;
+          negative = true;
+        }
+      }
+      int to_remove = chars_to_write - buffer_size;
+      if (to_remove > 0)
+      {
+        for (int i = 0; i < to_remove; i++)
+        {
+          integer /= 10;
+        }
+        if (digits_truncated)
+          *digits_truncated = to_remove;
+        chars_to_write -= to_remove;
+      }
+      else if (digits_truncated)
+        *digits_truncated = 0;
+
+      
+      for (int i = 0; i < chars_to_write; i++)
+      {
+        int remainder = integer % 10;
+        if (std::is_signed<T>::value)
+        {
+          if (negative)
+            remainder = -remainder;
+        }
+        integer /= 10;
+        target_buffer[chars_to_write - 1 - i] = '0' + char(remainder);
+      }
+      
+      return chars_to_write + negative;
+    }
+
+    template<typename T>
+    inline T convert_to_integer(const parsed_string& parsed)
+    {
+      if (parsed.inf)
+        return parsed.negative ? std::numeric_limits<T>::min() : std::numeric_limits<T>::max();
+      if (parsed.nan)
+        return T(0);
+
+      int exp = parsed.exp;
+      uint64_t significand = parsed.significand;
+      if (exp < 0)
+      {
+        int chars_in_sig = count_chars(significand);
+        if (-exp >= chars_in_sig)
+          return T(0);
+        while (exp < 0)
+        {
+          significand /= 10;
+          exp++;
+        }
+      }
+      else if (exp > 0)
+      {
+        int chars_in_sig = count_chars(significand);
+        if (exp > ft::StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() - chars_in_sig)
+          return parsed.negative ? std::numeric_limits<T>::min() : std::numeric_limits<T>::max();
+        while (exp > 0)
+        {
+          significand *= 10;
+          exp--;
+        }
+      }
+      if (std::is_unsigned<T>::value)
+        return T(significand);
+      return parsed.negative ? T(-significand) : T(significand);
+    }
+
+    template<typename T>
+    inline parse_string_error to_integer(const char* str, size_t size, T& target, const char* (&endptr))
+    {
+      parsed_string ps;
+      auto parseResult = parseNumber(str, size, ps);
+      endptr = ps.endptr;
+      if (parseResult != parse_string_error::ok)
+      {
+        target = 0;
+      }
+      else
+      {
+        target = convert_to_integer<T>(ps);
+      }
+      return parseResult;
+    }
+    
+    template<typename T>
+    inline parse_string_error to_integer(const std::string &str, T& target, const char* (&endptr))
+    {
+      return to_integer(str.c_str(), str.size(), target, endptr);
     }
   }
   
