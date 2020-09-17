@@ -1214,6 +1214,18 @@ namespace ft
     }
 
     template<typename T>
+    inline typename std::enable_if<std::is_signed<T>::value, T>::type make_integer_return_value(uint64_t significand, bool negative)
+    {
+      return negative ? -T(significand) : T(significand);
+    }
+
+    template<typename T>
+    inline typename std::enable_if<std::is_unsigned<T>::value, T>::type make_integer_return_value(uint64_t significand, bool)
+    {
+      return T(significand);
+    }
+
+    template<typename T>
     inline T convert_to_integer(const parsed_string& parsed)
     {
       if (parsed.inf)
@@ -1245,9 +1257,7 @@ namespace ft
           exp--;
         }
       }
-      if (std::is_unsigned<T>::value)
-        return T(significand);
-      return parsed.negative ? T(-significand) : T(significand);
+      return make_integer_return_value<T>(significand, bool(parsed.negative));
     }
 
     template<typename T>
