@@ -33,6 +33,10 @@
 #include <cmath>
 #include <assert.h>
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
 namespace ft
 {
   struct float_base10
