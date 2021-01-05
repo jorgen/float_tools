@@ -940,6 +940,7 @@ namespace ft
     const char* current;
     set_end_ptr setendptr(parsedString, current);
     int32_t desimal_position = -1;
+    bool increase_significand = true;
 
     parsedString.negative = false;
     parsedString.inf = 0;
@@ -972,9 +973,23 @@ namespace ft
       }
       else
       {
-        if (parsedString.significand_digit_count < 20)
+        if (parsedString.significand_digit_count < 19)
+        {
           parsedString.significand = parsedString.significand * uint64_t(10) + uint64_t(*current - '0');
-        parsedString.significand_digit_count++;
+          parsedString.significand_digit_count++;
+        }
+        else if (increase_significand && parsedString.significand_digit_count < 20)
+        {
+          increase_significand = false;
+          uint64_t digit(*current - '0');
+          auto biggest_multiplier = (std::numeric_limits<uint64_t>::max() - digit) / parsedString.significand;
+
+          if (biggest_multiplier >= 10)
+          {
+            parsedString.significand = parsedString.significand * uint64_t(10) + digit;
+            parsedString.significand_digit_count++;
+          }
+        }
       }
       current++;
     }

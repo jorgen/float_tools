@@ -231,7 +231,7 @@ TEST_CASE("random_numbers", "[roundtrip]")
       step_index++;
       i += uint64_t(offsets[step_index % offsets.size()]) * scale_to_get_avrage_step;
     }
-    fmt::print(stderr, "Thread ran for {} iterations\n", step_index);
+    //fmt::print(stderr, "Thread ran for {} iterations\n", step_index);
   };
 
   std::vector<std::thread> threads;
@@ -338,7 +338,7 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
       step_index++;
       i += offsets[step_index % offsets.size()] * scale_to_get_avrage_step;
     }
-    fmt::print(stderr, "Thread ran for {} iterations\n", step_index);
+    //fmt::print(stderr, "Thread ran for {} iterations\n", step_index);
   };
 
   std::vector<std::thread> threads;
@@ -627,4 +627,22 @@ TEST_CASE("problematic_float_values", "[float tests]")
   assert_float(uint32_t(1336934436));
   assert_float(uint32_t(5160));
   assert_float(uint32_t(79));
+}
+
+#define ASSERT_FLOAT_STR(TYPE, X) do { \
+  std::string str = #X; \
+  TYPE converted_float; \
+  const char* endptr; \
+  auto result = ft::to_ieee_t(str.data(), str.size(), converted_float, endptr); \
+  REQUIRE(result == ft::parse_string_error::ok); \
+  REQUIRE(converted_float == TYPE(X)); \
+  } while (0) \
+
+TEST_CASE("problematic_strings", "string_to_float")
+{
+  ASSERT_FLOAT_STR(float, 32587.403333333333333333333);
+  ASSERT_FLOAT_STR(double, 32587.403333333333333333333);
+  ASSERT_FLOAT_STR(float, 99999.999999999999999999999);
+  ASSERT_FLOAT_STR(double, 99999.999999999999999999999);
+
 }
