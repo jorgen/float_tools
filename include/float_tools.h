@@ -45,7 +45,7 @@ namespace ft
     uint8_t inf;
     uint8_t nan;
     uint8_t significand_digit_count;
-    int32_t exp;
+    int exp;
     uint64_t significand;
   };
 
@@ -261,12 +261,12 @@ namespace ft
   };
   
   template<typename T>
-  inline void get_parts(T f, bool& negative, int32_t& exp, uint64_t& mentissa)
+  inline void get_parts(T f, bool& negative, int& exp, uint64_t& mentissa)
   {
     uint64_t bits = 0;
     static_assert(sizeof(bits) >= sizeof(f), "Incompatible size");
     memcpy(&bits, &f, sizeof(f));
-    exp = int32_t((bits >> float_info<T>::mentissa_width()) & (((uint64_t(1) << float_info<T>::exponent_width()) - 1)));
+    exp = int((bits >> float_info<T>::mentissa_width()) & (((uint64_t(1) << float_info<T>::exponent_width()) - 1)));
     mentissa = bits & ((uint64_t(1) << float_info<T>::mentissa_width()) - 1);
     negative = bits >> ((sizeof(f) * 8) - 1);
   }
@@ -389,20 +389,20 @@ namespace ft
   inline bool is_nan(T t)
   {
     bool negative;
-    int32_t exp;
+    int exp;
     uint64_t mentissa;
     get_parts(t, negative, exp, mentissa);
-    return exp == ((int32_t(1) << float_info<T>::exponent_width()) - 1) && mentissa > 0;
+    return exp == ((int(1) << float_info<T>::exponent_width()) - 1) && mentissa > 0;
   }
   
   template<typename T>
   inline bool is_inf(T t)
   {
     bool negative;
-    int32_t exp;
+    int exp;
     uint64_t mentissa;
     get_parts(t, negative, exp, mentissa);
-    return exp == ((int32_t(1) << float_info<T>::exponent_width()) - 1) && mentissa == 0;
+    return exp == ((int(1) << float_info<T>::exponent_width()) - 1) && mentissa == 0;
   }
 
   template<typename T>
@@ -768,7 +768,7 @@ namespace ft
 
       uint64_t w = mentissa + 2;
 
-      int32_t e10 = exp < 0 ? exp : 0;
+      int e10 = exp < 0 ? exp : 0;
 
       int q;
       int shift_right;
@@ -819,15 +819,15 @@ namespace ft
       uint64_t b = multiply_and_shift<T>(mentissa, cache_value, shift_right, false);
       uint64_t c = multiply_and_shift<T>(w, cache_value, shift_right, false);
 
-      int32_t exponent_adjust;
+      int exponent_adjust;
       uint64_t shortest_base10;
       compute_shortest(a, b, c, accept_smaller && zero[0], accept_larger || !zero[2], zero[1], exponent_adjust, shortest_base10);
       int significand_digit_count = count_chars(shortest_base10);
-      int32_t e = exponent_adjust + e10 + q;
+      int e = exponent_adjust + e10 + q;
       return { negative, false, false, uint8_t(significand_digit_count), e, shortest_base10 };
     }
 
-    inline int convert_parsed_to_buffer(const float_base10& result, char* buffer, int32_t buffer_size, int max_expanded_length, int *digits_truncated = nullptr)
+    inline int convert_parsed_to_buffer(const float_base10& result, char* buffer, int buffer_size, int max_expanded_length, int *digits_truncated = nullptr)
     {
       if (buffer_size < 1)
         return 0;
@@ -976,7 +976,7 @@ namespace ft
             buffer[offset++] = '.';
           else return offset;
         }
-        int32_t to_copy = min(buffer_size - offset, int32_t(result.significand_digit_count) - 1);
+        int to_copy = min(buffer_size - offset, int(result.significand_digit_count) - 1);
         for (int i = 0; i < to_copy; i++)
         {
           buffer[offset++] = significan_buffer[1 + i];
@@ -1024,7 +1024,7 @@ namespace ft
   {
     const char* current;
     set_end_ptr setendptr(parsedString, current);
-    int32_t desimal_position = -1;
+    int desimal_position = -1;
     bool increase_significand = true;
 
     parsedString.negative = false;
