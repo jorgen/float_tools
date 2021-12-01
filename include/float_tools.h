@@ -83,7 +83,7 @@ namespace ft
 
   inline void left_shift(uint64_t(&a)[2], int shift)
   {
-    if (shift > sizeof(*a) * 8)
+    if (shift > int(sizeof(*a)) * 8)
     {
       auto shift_0 = (int(sizeof(uint64_t) * 8) - shift);
       if (shift_0 > 0)
@@ -245,7 +245,7 @@ namespace ft
     static inline void copy_normal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, double& to_digit)
     {
       uint64_t q = a[1] & ~str_to_float_mask();
-      uint64_t to_round_off = (q & (uint64_t(1) << 8) - 1);
+      uint64_t to_round_off = (q & ((uint64_t(1) << 8) - 1));
       bool bigger =  to_round_off > (uint64_t(1) << (8 - 1)) || (to_round_off == (uint64_t(1) << (8 - 1)) && a[0]);
       bool tie_odd = (!(q & ((uint64_t(1) << 7) - 1))) && (q & (uint64_t(1)<<8)) && !a[0];
       if (bigger || tie_odd)
@@ -332,7 +332,7 @@ namespace ft
     static inline void copy_normal_to_type(const str_to_float_conversion_type& a, int binary_exponent, bool negative, float &to_digit)
     {
       uint64_t q = a & ~str_to_float_mask();
-      bool bigger = (q & (uint64_t(1) << 37) - 1) > (uint64_t(1) << (37 - 1));
+      bool bigger = (q & ((uint64_t(1) << 37) - 1)) > (uint64_t(1) << (37 - 1));
       bool tie_odd = (!(q & ((uint64_t(1) << 36) - 1))) && (q & (uint64_t(1)<<37));
       if (bigger || tie_odd)
       {
@@ -558,7 +558,7 @@ namespace ft
       }
     }
 
-    static void compute_shortest(uint64_t a, uint64_t b, uint64_t c, bool accept_smaller, bool accept_larger, bool break_tie_down, int& exponent_adjuster, uint64_t& shortest_base10)
+    inline void compute_shortest(uint64_t a, uint64_t b, uint64_t c, bool accept_smaller, bool accept_larger, bool break_tie_down, int& exponent_adjuster, uint64_t& shortest_base10)
     {
       int i = 0;
       if (!accept_larger)
@@ -571,12 +571,10 @@ namespace ft
       uint64_t b_next = b / 10;
       uint32_t b_remainder = b % 10;
       uint64_t c_next = c / 10;
-      uint32_t c_remainder = c % 10;
       while (a_next < c_next)
       {
         a_remainder = a % 10;
         b_remainder = b % 10;
-        c_remainder = c % 10;
 
         all_b_zero &= bool(!b_remainder);
         all_a_zero &= bool(!a_remainder);
@@ -593,9 +591,7 @@ namespace ft
       {
         while (!(a_next % 10))
         {
-          a_remainder = a % 10;
           b_remainder = b % 10;
-          c_remainder = c % 10;
           
           all_b_zero &= bool(!b_remainder);
 
@@ -650,9 +646,9 @@ namespace ft
       result[5] = high(result[4]);
 
       uint64_t ret[4];
-      ret[0] = low(result[0]) | (low(result[1]) << 32) + high(result[0]);
-      ret[1] = low(result[2]) | low(result[3]) << 32;
-      ret[2] = low(result[4]) | low(result[5]) << 32;
+      ret[0] = low(result[0]) | ((low(result[1]) << 32) + high(result[0]));
+      ret[1] = low(result[2]) | (low(result[3]) << 32);
+      ret[2] = low(result[4]) | (low(result[5]) << 32);
 
       int index = shift_right / 64;
       int shift_right_in_index = shift_right - (index * 64);
@@ -694,8 +690,8 @@ namespace ft
       result[3] += high(result[2]);
 
       uint64_t ret[4];
-      ret[0] = low(result[0]) | (low(result[1]) << 32) + high(result[0]);
-      ret[1] = low(result[2]) | low(result[3]) << 32;
+      ret[0] = low(result[0]) | ((low(result[1]) << 32) + high(result[0]));
+      ret[1] = low(result[2]) | (low(result[3]) << 32);
 
       int index = shift_right / 64;
       int shift_right_in_index = shift_right - (index * 64);
@@ -796,11 +792,11 @@ namespace ft
       else
       {
         q = max(0, int(-exp * log_10_5) - 1);
-        int k = int(std::ceil((-exp - q) * log_2_5)) - cache_values<T>::b1;
+        int k = int(std::ceil((double(-exp) - double(q)) * log_2_5)) - cache_values<T>::b1;
         shift_right = q - k;
         if (q && q - 1 <= float_info<T>::max_double_2_pow_q())
         {
-          uint64_t mod = uint64_t(1) << (q - 1);
+          uint64_t mod = uint64_t(1) << int(q - 1);
           zero[1] = (mentissa % mod) == 0;
 
           if (q <= float_info<T>::max_double_2_pow_q())
@@ -856,7 +852,7 @@ namespace ft
         return offset;
       }
 
-      char significan_buffer[17];
+      char significan_buffer[17] = {};
       assert(result.significand_digit_count <= uint8_t(17));
       int digits_before_decimals = result.significand_digit_count + result.exp;
       int digits_after_decimals = result.exp < 0 ? -result.exp : 0;
@@ -951,7 +947,7 @@ namespace ft
 
         exp += result.significand_digit_count;
         exp--;
-        char exponent_buffer[4];
+        char exponent_buffer[4] = {};
         int exponent_digit_count = count_chars(exp);
         if (exp < 0)
         {
@@ -1060,13 +1056,13 @@ namespace ft
       {
         if (parsedString.significand_digit_count < 19)
         {
-          parsedString.significand = parsedString.significand * uint64_t(10) + uint64_t(*current - '0');
+          parsedString.significand = parsedString.significand * uint64_t(10) + (uint64_t(*current) - '0');
           parsedString.significand_digit_count++;
         }
         else if (increase_significand && parsedString.significand_digit_count < 20)
         {
           increase_significand = false;
-          uint64_t digit(*current - '0');
+          uint64_t digit = uint64_t(*current) - '0';
           auto biggest_multiplier = (std::numeric_limits<uint64_t>::max() - digit) / parsedString.significand;
 
           if (biggest_multiplier >= 10)
