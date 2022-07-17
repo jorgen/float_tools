@@ -39,6 +39,7 @@
 
 namespace ft
 {
+  template<typename T>
   struct float_base10
   {
     uint8_t negative;
@@ -46,10 +47,11 @@ namespace ft
     uint8_t nan;
     uint8_t significand_digit_count;
     int exp;
-    uint64_t significand;
+    T significand;
   };
 
-  struct parsed_string : float_base10
+  template<typename T>
+  struct parsed_string : float_base10<T>
   {
     const char* endptr;
   };
@@ -271,7 +273,8 @@ namespace ft
     negative = bits >> ((sizeof(f) * 8) - 1);
   }
 
-  inline void assign_significand_to_float_conversion_type(const float_base10 &significand, uint64_t(&a)[2])
+  template<typename T>
+  inline void assign_significand_to_float_conversion_type(const float_base10<T> &significand, uint64_t(&a)[2])
   {
     a[0] = significand.significand;
     a[1] = 0;
@@ -428,7 +431,8 @@ namespace ft
     return last;
   }
 
-  inline void assign_significand_to_float_conversion_type(const float_base10 &significand, uint64_t &a)
+  template<typename T>
+  inline void assign_significand_to_float_conversion_type(const float_base10<T> &significand, uint64_t &a)
   {
     a = significand.significand;
   }
@@ -726,8 +730,8 @@ namespace ft
       return ret;
     }
 
-    template<typename T>
-    static float_base10 decode(T f)
+    template<typename T, typename SignificandType>
+    static float_base10<SignificandType> decode(T f)
     {
       bool negative;
       int exp;
@@ -823,7 +827,8 @@ namespace ft
       return { negative, false, false, uint8_t(significand_digit_count), e, shortest_base10 };
     }
 
-    inline int convert_parsed_to_buffer(const float_base10& result, char* buffer, int buffer_size, int max_expanded_length, int *digits_truncated = nullptr)
+    template<typename T>
+    inline int convert_parsed_to_buffer(const float_base10<T> &result, char* buffer, int buffer_size, int max_expanded_length, int *digits_truncated = nullptr)
     {
       if (buffer_size < 1)
         return 0;
@@ -995,11 +1000,12 @@ namespace ft
 
   }
 
+  template<typename T>
   struct set_end_ptr
   {
-    set_end_ptr(parsed_string& parsedString, const char*& current) : parsedString(parsedString), current(current) {}
+    set_end_ptr(parsed_string<T> &parsedString, const char*& current) : parsedString(parsedString), current(current) {}
     ~set_end_ptr() { parsedString.endptr = current; }
-    parsed_string& parsedString;
+    parsed_string<T> &parsedString;
     const char*& current;
   };
 
@@ -1016,10 +1022,11 @@ namespace ft
     return false;
   }
 
-  inline parse_string_error parseNumber(const char* number, size_t size, parsed_string& parsedString)
+  template<typename T, bool NoDigitCount>
+  inline parse_string_error parseNumber(const char* number, size_t size, parsed_string<T> &parsedString)
   {
     const char* current;
-    set_end_ptr setendptr(parsedString, current);
+    set_end_ptr<T> setendptr(parsedString, current);
     int desimal_position = -1;
     bool increase_significand = true;
 
@@ -1054,15 +1061,16 @@ namespace ft
       }
       else
       {
-        if (parsedString.significand_digit_count < 19)
+        if (NoDigitCount || parsedString.significand_digit_count < 19)
         {
-          parsedString.significand = parsedString.significand * uint64_t(10) + (uint64_t(*current) - '0');
+          parsedString.significand = parsedString.significand * T(10) + T(int(*current) - '0');
           parsedString.significand_digit_count++;
         }
         else if (increase_significand && parsedString.significand_digit_count < 20)
         {
           increase_significand = false;
           uint64_t digit = uint64_t(*current) - '0';
+          static_assert(NoDigitCount || std::is_same<T, uint64_t>::value, "When NoDigitCount is used the significand type has to be uint64_t");
           auto biggest_multiplier = (std::numeric_limits<uint64_t>::max() - digit) / parsedString.significand;
 
           if (biggest_multiplier >= 10)
@@ -1154,8 +1162,8 @@ namespace ft
     return data[pow];
   }
 
-  template<typename T>
-  inline T convertToNumber(const parsed_string& parsed)
+  template<typename T, typename SignificandType>
+  inline T convertToNumber(const parsed_string<SignificandType> &parsed)
   {
     int base10exponent = parsed.exp + parsed.significand_digit_count - 1;
     if (base10exponent > float_info<T>::max_base10_exponent())
@@ -1234,14 +1242,14 @@ namespace ft
     template<typename T>
     int to_buffer(T d, char* buffer, int buffer_size, int *digits_truncated = nullptr)
     {
-      auto decoded = decode(d);
+      auto decoded = decode<T, uint64_t>(d);
       return convert_parsed_to_buffer(decoded, buffer, buffer_size, float_info<T>::str_to_float_expanded_length(), digits_truncated);
     }
 
     template<typename T>
     inline std::string to_string(T f)
     {
-      auto decoded = decode(f);
+      auto decoded = decode<T, uint64_t>(f);
       std::string ret;
       ret.resize(25);
       ret.resize(size_t(convert_parsed_to_buffer(decoded, &ret[0], int(ret.size()), float_info<T>::str_to_float_expanded_length())));
@@ -1298,20 +1306,20 @@ namespace ft
       return chars_to_write + negative;
     }
 
-    template<typename T>
-    inline typename std::enable_if<std::is_signed<T>::value, T>::type make_integer_return_value(uint64_t significand, bool negative)
+    template<typename T, typename SignificandType>
+    inline typename std::enable_if<std::is_signed<T>::value, T>::type make_integer_return_value(SignificandType significand, bool negative)
     {
       return negative ? -T(significand) : T(significand);
     }
 
-    template<typename T>
-    inline typename std::enable_if<std::is_unsigned<T>::value, T>::type make_integer_return_value(uint64_t significand, bool)
+    template<typename T, typename SignificandType>
+    inline typename std::enable_if<std::is_unsigned<T>::value, T>::type make_integer_return_value(SignificandType significand, bool)
     {
       return T(significand);
     }
 
-    template<typename T>
-    inline T convert_to_integer(const parsed_string& parsed)
+    template<typename T, typename SignificandType>
+    inline T convert_to_integer(const parsed_string<SignificandType> &parsed)
     {
       if (parsed.inf)
         return parsed.negative ? std::numeric_limits<T>::min() : std::numeric_limits<T>::max();
@@ -1319,7 +1327,7 @@ namespace ft
         return T(0);
 
       int exp = parsed.exp;
-      uint64_t significand = parsed.significand;
+      auto significand = parsed.significand;
       if (exp < 0)
       {
         int chars_in_sig = count_chars(significand);
@@ -1348,8 +1356,9 @@ namespace ft
     template<typename T>
     inline parse_string_error to_integer(const char* str, size_t size, T& target, const char* (&endptr))
     {
-      parsed_string ps;
-      auto parseResult = parseNumber(str, size, ps);
+      using SignificandType = typename std::make_unsigned<T>::type;
+      parsed_string<SignificandType> ps;
+      auto parseResult = parseNumber<SignificandType,true>(str, size, ps);
       endptr = ps.endptr;
       if (parseResult != parse_string_error::ok)
       {
@@ -1372,8 +1381,8 @@ namespace ft
   template<typename T>
   inline parse_string_error to_ieee_t(const char* str, size_t size, T &target, const char *(&endptr))
   {
-    parsed_string ps;
-    auto parseResult = parseNumber(str, size, ps);
+    parsed_string<uint64_t> ps;
+    auto parseResult = parseNumber<uint64_t, false>(str, size, ps);
     endptr = ps.endptr;
     if (parseResult != parse_string_error::ok)
     {

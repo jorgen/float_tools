@@ -67,22 +67,3 @@ TEST_CASE("print_test_float", "[output_string]")
   CHECK_FLOAT_TRUNCATED(0.001, 4);
   CHECK_FLOAT_TRUNCATED(1.0, 1);
 }
-
-TEST_CASE("roundtrip_large_ints", "[output_string]")
-{
-#ifdef __SIZEOF_INT128__
-  __uint128_t f = 0;
-  f = ~f;
-  char buf[40];
-  int digits_truncated;
-  int size = ft::integer::to_buffer(f, buf, sizeof(buf), &digits_truncated);
-  REQUIRE(size > 0);
-  REQUIRE(!digits_truncated);
-
-  __uint128_t t;
-  const char *pointer;
-  auto parse_error = ft::integer::to_integer(buf, size, t, pointer);
-  REQUIRE(parse_error == ft::parse_string_error::ok);
-  REQUIRE(buf < pointer);
-#endif
-}

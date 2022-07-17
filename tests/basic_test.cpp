@@ -72,26 +72,26 @@ TEST_CASE("small test negative", "[ryu]")
 
 TEST_CASE("basic parsenumber", "[ryu]")
 {
-  ft::parsed_string parsedString;
+  ft::parsed_string<uint64_t> parsedString;
 
   std::string small_pi = "3.1415";
-  auto result = ft::parseNumber(small_pi.data(), small_pi.size(), parsedString);
+  auto result = ft::parseNumber<uint64_t, false>(small_pi.data(), small_pi.size(), parsedString);
   REQUIRE(result == ft::parse_string_error::ok);
 
   std::string big_number = "1.2345";
-  result = ft::parseNumber(big_number.data(), big_number.size(), parsedString);
+  result = ft::parseNumber<uint64_t, false>(big_number.data(), big_number.size(), parsedString);
   REQUIRE(result == ft::parse_string_error::ok);
   
   std::string lessone = "0.3";
-  result = ft::parseNumber(lessone.data(), lessone.size(), parsedString);
+  result = ft::parseNumber<uint64_t, false>(lessone.data(), lessone.size(), parsedString);
   REQUIRE(result == ft::parse_string_error::ok);
 }
 
 TEST_CASE("basic convert", "[ryu]")
 {
-  ft::parsed_string parsedString;
+  ft::parsed_string<uint64_t> parsedString;
   std::string lessone = "0.3";
-  auto result = ft::parseNumber(lessone.data(), lessone.size(), parsedString);
+  auto result = ft::parseNumber<uint64_t, false>(lessone.data(), lessone.size(), parsedString);
   REQUIRE(result == ft::parse_string_error::ok);
   double three = 0.3;
   double d = ft::convertToNumber<double>(parsedString);

@@ -74,3 +74,43 @@ TEST_CASE("basic_string_to_int", "[string to integer]")
   test_int2("4294967295e30", std::numeric_limits<uint32_t>::max());
   test_int2("18446744073709551615e10", std::numeric_limits<uint64_t>::max());
 }
+
+TEST_CASE("roundtrip_large_ints", "[integer]")
+{
+#ifdef __SIZEOF_INT128__
+  __uint128_t f = 0;
+  f = ~f;
+  char buf[40];
+  int digits_truncated;
+  int size = ft::integer::to_buffer(f, buf, sizeof(buf), &digits_truncated);
+  REQUIRE(size > 0);
+  REQUIRE(!digits_truncated);
+
+  __uint128_t t = 0;
+  const char *pointer;
+  auto parse_error = ft::integer::to_integer(buf, size, t, pointer);
+  REQUIRE(parse_error == ft::parse_string_error::ok);
+  REQUIRE(buf < pointer);
+  REQUIRE(f == t);
+#endif
+}
+
+TEST_CASE("roundtrip_large_ints_signed_int", "[integer]")
+{
+#ifdef __SIZEOF_INT128__
+  __int128_t f = 0;
+  f = ~f;
+  char buf[40];
+  int digits_truncated;
+  int size = ft::integer::to_buffer(f, buf, sizeof(buf), &digits_truncated);
+  REQUIRE(size > 0);
+  REQUIRE(!digits_truncated);
+
+  __int128_t t = 0;
+  const char *pointer;
+  auto parse_error = ft::integer::to_integer(buf, size, t, pointer);
+  REQUIRE(parse_error == ft::parse_string_error::ok);
+  REQUIRE(buf < pointer);
+  REQUIRE(f == t);
+#endif
+}
