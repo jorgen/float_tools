@@ -626,6 +626,10 @@ namespace ft
     template<typename T>
     inline uint64_t multiply_and_shift(uint64_t a, const uint64_t* b, int shift_right, bool round_up)
     {
+      (void)a;
+      (void)b;
+      (void) shift_right;
+      (void) round_up;
       return 0;
     }
     template<>
