@@ -85,7 +85,9 @@ namespace ft
 
   inline void left_shift(uint64_t(&a)[2], int shift)
   {
-    if (shift > int(sizeof(*a)) * 8)
+    if (shift == 0)
+      return;
+    if (shift >= int(sizeof(*a)) * 8)
     {
       auto shift_0 = (int(sizeof(uint64_t) * 8) - shift);
       if (shift_0 > 0)
@@ -534,10 +536,11 @@ namespace ft
   template<typename T>
   int count_chars(T t) noexcept
   {
-    if (iabs<T>(t) < T(10))
+    const T a = iabs<T>(t);
+    if (a < T(10))
       return 1;
     constexpr int maxChars = StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() + 1;
-    return CharsInDigit<T, maxChars, 0>::lower_bounds(iabs<T>(t)) - 1;
+    return CharsInDigit<T, maxChars, 0>::lower_bounds(a) - 1;
   }
 
   namespace ryu
@@ -623,6 +626,24 @@ namespace ft
       }
     }
 
+    static inline uint64_t umul128(uint64_t a, uint64_t b, uint64_t* hi)
+    {
+#if defined(__SIZEOF_INT128__) && !defined(FT_NO_INT128)
+      unsigned __int128 p = (unsigned __int128)a * (unsigned __int128)b;
+      *hi = uint64_t(p >> 64);
+      return uint64_t(p);
+#elif defined(_MSC_VER) && defined(_WIN64)
+      return _umul128(a, b, hi);
+#else
+      uint64_t a0 = low(a), a1 = high(a), b0 = low(b), b1 = high(b);
+      uint64_t t = a0 * b0;
+      uint64_t m = a1 * b0 + high(t);
+      uint64_t mid = a0 * b1 + low(m);
+      *hi = a1 * b1 + high(m) + high(mid);
+      return (low(mid) << 32) | low(t);
+#endif
+    }
+
     template<typename T>
     inline uint64_t multiply_and_shift(uint64_t a, const uint64_t* b, int shift_right, bool round_up)
     {
@@ -635,28 +656,14 @@ namespace ft
     template<>
     inline uint64_t multiply_and_shift<double>(uint64_t a, const uint64_t *b, int shift_right, bool round_up)
     {
-      uint64_t a0, a1, b0, b1, b2, b3, a0b0, a0b1, a0b2, a0b3, a1b0, a1b1, a1b2, a1b3;
-      a0 = low(a); a1 = high(a); b0 = low(b[0]); b1 = high(b[0]); b2 = low(b[1]); b3 = high(b[1]);
-
-      a0b0 = a0 * b0; a0b1 = a0 * b1; a0b2 = a0 * b2; a0b3 = a0 * b3; a1b0 = a1 * b0; a1b1 = a1 * b1; a1b2 = a1 * b2; a1b3 = a1 * b3;
-
-      uint64_t result[6];
-      result[0] = low(a0b0);
-      result[1] = low(a0b1) + low(a1b0) + high(a0b0);
-      result[2] = low(a0b2) + low(a1b1) + high(a0b1) + high(a1b0);
-      result[3] = low(a0b3) + low(a1b2) + high(a0b2) + high(a1b1);
-      result[4] = a1b3 + high(a0b3) + high(a1b2);
-
-      result[1] += high(result[0]);
-      result[2] += high(result[1]);
-      result[3] += high(result[2]);
-      result[4] += high(result[3]);
-      result[5] = high(result[4]);
-
-      uint64_t ret[4];
-      ret[0] = low(result[0]) | ((low(result[1]) << 32) + high(result[0]));
-      ret[1] = low(result[2]) | (low(result[3]) << 32);
-      ret[2] = low(result[4]) | (low(result[5]) << 32);
+      uint64_t ret[4] = {};
+      uint64_t hi0, hi1;
+      uint64_t lo0 = umul128(a, b[0], &hi0);
+      uint64_t lo1 = umul128(a, b[1], &hi1);
+      ret[0] = lo0;
+      uint64_t mid = hi0 + lo1;
+      ret[1] = mid;
+      ret[2] = hi1 + (mid < hi0 ? uint64_t(1) : uint64_t(0));
 
       int index = shift_right / 64;
       int shift_right_in_index = shift_right - (index * 64);
@@ -682,24 +689,10 @@ namespace ft
     template<>
     inline uint64_t multiply_and_shift<float>(uint64_t a, const uint64_t *b, int shift_right, bool round_up)
     {
-      uint64_t a0, a1, b0, b1, a0b0, a0b1, a1b0, a1b1;
-      a0 = low(a); a1 = high(a); b0 = low(*b); b1 = high(*b);
-
-      a0b0 = a0 * b0; a0b1 = a0 * b1; a1b0 = a1 * b0; a1b1 = a1 * b1;
-
-      uint64_t result[4] = {};
-      result[0] = low(a0b0);
-      result[1] = low(a0b1) + low(a1b0) + high(a0b0);
-      result[2] = low(a1b1) + high(a0b1) + high(a1b0);
-      result[3] = high(a1b1);
-
-      result[1] += high(result[0]);
-      result[2] += high(result[1]);
-      result[3] += high(result[2]);
-
-      uint64_t ret[4];
-      ret[0] = low(result[0]) | ((low(result[1]) << 32) + high(result[0]));
-      ret[1] = low(result[2]) | (low(result[3]) << 32);
+      uint64_t ret[4] = {};
+      uint64_t hi;
+      ret[0] = umul128(a, *b, &hi);
+      ret[1] = hi;
 
       int index = shift_right / 64;
       int shift_right_in_index = shift_right - (index * 64);
@@ -724,12 +717,12 @@ namespace ft
 
     inline uint64_t pow_int(int n, int exp)
     {
-      if (!exp)
+      if (exp <= 0)
         return 1;
       uint64_t ret = uint64_t(n);
-      for (int i = 0; i < exp; i++)
+      for (int i = 1; i < exp; i++)
       {
-        ret *= ret;
+        ret *= uint64_t(n);
       }
       return ret;
     }
@@ -805,15 +798,15 @@ namespace ft
         if (q && q - 1 <= float_info<T>::max_double_2_pow_q())
         {
           uint64_t mod = uint64_t(1) << int(q - 1);
-          zero[1] = (mentissa % mod) == 0;
+          zero[1] = (mentissa & (mod - 1)) == 0;
 
           if (q <= float_info<T>::max_double_2_pow_q())
           {
             mod <<= 1;
             if (mod)
             {
-              zero[0] = (u % mod) == 0;
-              zero[2] = (w % mod) == 0;
+              zero[0] = (u & (mod - 1)) == 0;
+              zero[2] = (w & (mod - 1)) == 0;
             }
           }
         }
@@ -914,7 +907,7 @@ namespace ft
           }
         }
         int index_pos = std::max(complete_digits - 1, 0);
-        for (int i = 0; i < digits_after_decimals; i++, index_pos--)
+        for (int i = 0; i < digits_after_decimals && index_pos >= 0; i++, index_pos--)
         {
           char remainder = char(significand % 10);
           significand /= 10;
@@ -922,25 +915,26 @@ namespace ft
         }
         if (print_desimal_seperator)
         {
-          if (digits_after_decimals == 0)
+          if (digits_after_decimals == 0 && index_pos >= 0)
           {
             target_buffer[index_pos--] = '0';
           }
-          target_buffer[index_pos--] = '.';
+          if (index_pos >= 0)
+            target_buffer[index_pos--] = '.';
         }
         int add_zeros_before_decimal = std::max(result.exp, 0);
-        for (int i = 0; i < add_zeros_before_decimal; i++, index_pos--)
+        for (int i = 0; i < add_zeros_before_decimal && index_pos >= 0; i++, index_pos--)
         {
           target_buffer[index_pos] = '0';
           digits_before_decimals--;
         }
-        for (int i = 0; i < digits_before_decimals; i++, index_pos--)
+        for (int i = 0; i < digits_before_decimals && index_pos >= 0; i++, index_pos--)
         {
           char remainder = char(significand % 10);
           significand /= 10;
           target_buffer[index_pos] = '0' + remainder;
         }
-        if (digits_before_decimals <= 0)
+        if (digits_before_decimals <= 0 && index_pos >= 0)
           target_buffer[index_pos] = '0';
         return complete_digits + offset;
       }
@@ -1054,10 +1048,11 @@ namespace ft
     }
     while (current < number_end)
     {
-      if ((*current < '0' || *current > '9') && *current != '.')
+      const char c = *current;
+      if ((c < '0' || c > '9') && c != '.')
         break;
 
-      if (*current == '.')
+      if (c == '.')
       {
         if (desimal_position >= 0)
           return parse_string_error::multiple_commas;
@@ -1067,13 +1062,13 @@ namespace ft
       {
         if (NoDigitCount || parsedString.significand_digit_count < 19)
         {
-          parsedString.significand = parsedString.significand * T(10) + T(int(*current) - '0');
+          parsedString.significand = parsedString.significand * T(10) + T(int(c) - '0');
           parsedString.significand_digit_count++;
         }
         else if (increase_significand && parsedString.significand_digit_count < 20)
         {
           increase_significand = false;
-          uint64_t digit = uint64_t(*current) - '0';
+          uint64_t digit = uint64_t(c) - '0';
           static_assert(NoDigitCount || std::is_same<T, uint64_t>::value, "When NoDigitCount is used the significand type has to be uint64_t");
           auto biggest_multiplier = (std::numeric_limits<uint64_t>::max() - digit) / parsedString.significand;
 
@@ -1086,7 +1081,7 @@ namespace ft
       }
       current++;
     }
-    if (*current != 'e' && *current != 'E')
+    if (current == number_end || (*current != 'e' && *current != 'E'))
     {
       if (desimal_position >= 0)
         parsedString.exp = desimal_position - parsedString.significand_digit_count;
@@ -1120,7 +1115,8 @@ namespace ft
       if ((*current < '0' || *current > '9'))
         break;
       exponent_assigned = true;
-      exponent = exponent * 10 + (*current - '0');
+      if (exponent < 100000000)
+        exponent = exponent * 10 + (*current - '0');
       current++;
     }
     if (!exponent_assigned)
@@ -1241,6 +1237,12 @@ namespace ft
     return to_digit;
   }
 
+  template<>
+  inline float convertToNumber<float, uint64_t>(const parsed_string<uint64_t>& parsed)
+  {
+    return float(convertToNumber<double, uint64_t>(parsed));
+  }
+
   namespace ryu
   {
     template<typename T>
@@ -1254,10 +1256,9 @@ namespace ft
     inline std::string to_string(T f)
     {
       auto decoded = decode<T, uint64_t>(f);
-      std::string ret;
-      ret.resize(25);
-      ret.resize(size_t(convert_parsed_to_buffer(decoded, &ret[0], int(ret.size()), float_info<T>::str_to_float_expanded_length())));
-      return ret;
+      char buffer[25];
+      int n = convert_parsed_to_buffer(decoded, buffer, int(sizeof(buffer)), float_info<T>::str_to_float_expanded_length());
+      return std::string(buffer, size_t(n));
     }
   }
 
@@ -1313,12 +1314,23 @@ namespace ft
     template<typename T, typename SignificandType>
     inline typename std::enable_if<std::is_signed<T>::value, T>::type make_integer_return_value(SignificandType significand, bool negative)
     {
-      return negative ? -T(significand) : T(significand);
+      if (negative)
+      {
+        const SignificandType min_magnitude = SignificandType(std::numeric_limits<T>::max()) + SignificandType(1);
+        if (significand >= min_magnitude)
+          return std::numeric_limits<T>::min();
+        return -T(significand);
+      }
+      if (significand > SignificandType(std::numeric_limits<T>::max()))
+        return std::numeric_limits<T>::max();
+      return T(significand);
     }
 
     template<typename T, typename SignificandType>
     inline typename std::enable_if<std::is_unsigned<T>::value, T>::type make_integer_return_value(SignificandType significand, bool)
     {
+      if (SignificandType(significand) > SignificandType(std::numeric_limits<T>::max()))
+        return std::numeric_limits<T>::max();
       return T(significand);
     }
 
@@ -1360,7 +1372,7 @@ namespace ft
     template<typename T>
     inline parse_string_error to_integer(const char* str, size_t size, T& target, const char* (&endptr))
     {
-      using SignificandType = typename std::make_unsigned<T>::type;
+      using SignificandType = uint64_t;
       parsed_string<SignificandType> ps;
       auto parseResult = parseNumber<SignificandType,true>(str, size, ps);
       endptr = ps.endptr;
