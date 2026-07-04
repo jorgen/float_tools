@@ -2,7 +2,11 @@ cmake_minimum_required (VERSION 3.25)
 project (float_tools)
 
 set (CMAKE_CXX_STANDARD 17)
-set (CMAKE_CXX_EXTENSIONS OFF)
+# Extensions ON (-std=gnu++17) is required on GCC/Clang: the library and its
+# tests use __int128, and libstdc++/libc++ only treat it as a proper integral
+# type (is_integral, is_signed, make_unsigned, numeric_limits) in GNU mode.
+# MSVC has no __int128 and keeps its explicit /permissive- below.
+set (CMAKE_CXX_EXTENSIONS ON)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	add_compile_options(/permissive-)
