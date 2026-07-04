@@ -11,7 +11,7 @@ void test_int(T i, const std::string &valid_str)
   std::string str;
   str.resize(ft::StaticLog10<T, std::numeric_limits<T>::max(), 0, 0, true>::get() + 1);
   int truncated;
-  str.resize(ft::integer::to_buffer(i, &str[0], str.size(), &truncated));
+  str.resize(ft::integer::to_buffer(i, &str[0], int(str.size()), &truncated));
   REQUIRE(truncated == 0);
   REQUIRE(str == valid_str);
 }
@@ -32,7 +32,7 @@ TEST_CASE("basic_int_to_string", "[integer to string]")
   std::string lowStr;
   lowStr.resize(12);
   int truncated;
-  lowStr.resize(ft::integer::to_buffer(low, &lowStr[0], lowStr.size(), &truncated));
+  lowStr.resize(ft::integer::to_buffer(low, &lowStr[0], int(lowStr.size()), &truncated));
   REQUIRE(lowStr == "123");
 
   TEST_INT(123);

@@ -336,7 +336,7 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
       REQUIRE(converted_value == float_value);
 
       step_index++;
-      i += offsets[step_index % offsets.size()] * scale_to_get_avrage_step;
+      i += uint32_t(offsets[step_index % offsets.size()] * scale_to_get_avrage_step);
     }
     //fmt::print(stderr, "Thread ran for {} iterations\n", step_index);
   };

@@ -191,7 +191,7 @@ namespace ryu
       fmt::print("  constexpr static const int b0 = {};\n", b0);
       fmt::print("  constexpr static const int b1 = {};\n\n", b1);
       fmt::print("  static const uint64_t *less_than(int index)\n  {{\n");
-      uint_for_float_converter<T>::print_cache_array_declaration(lt.size());
+      uint_for_float_converter<T>::print_cache_array_declaration(int(lt.size()));
       for (int i = 0; i < lt.size(); i++)
       {
         uint_for_float_converter<T>::print_data_entry(lt[i]);
@@ -214,7 +214,7 @@ namespace ryu
       uint_for_float_converter<T>::print_return();
       fmt::print("  }}\n\n");
       fmt::print("  static const uint64_t *greater_than_equals(int index)\n  {{\n");
-      uint_for_float_converter<T>::print_cache_array_declaration(gte.size());
+      uint_for_float_converter<T>::print_cache_array_declaration(int(gte.size()));
       for (int i = 0; i < gte.size(); i++)
       {
         uint_for_float_converter<T>::print_data_entry(gte[i]);

@@ -32,7 +32,7 @@
     std::string check; \
     check.resize((sizeof(#X) - 1) - TO_TRUNCATE); \
     int digits_truncated; \
-    int size = ft::ryu::to_buffer(float(X), &check[0], check.size(), &digits_truncated); \
+    int size = ft::ryu::to_buffer(float(X), &check[0], int(check.size()), &digits_truncated); \
     std::string prefix(check.data(), check.data() + size); \
     REQUIRE(digits_truncated == TO_TRUNCATE); \
     REQUIRE(starts_with(std::string(#X), prefix)); \

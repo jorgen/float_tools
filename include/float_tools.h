@@ -1061,7 +1061,10 @@ namespace ft
       }
       else
       {
-        if (NoDigitCount || parsedString.significand_digit_count < 19)
+        bool keep_digit = NoDigitCount;
+        if (!keep_digit)
+          keep_digit = parsedString.significand_digit_count < 19;
+        if (keep_digit)
         {
           parsedString.significand = parsedString.significand * T(10) + T(int(c) - '0');
           parsedString.significand_digit_count++;
