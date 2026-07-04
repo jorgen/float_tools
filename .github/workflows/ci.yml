@@ -41,10 +41,7 @@ jobs:
 
   macos:
     name: macos-${{ matrix.build_type }}
-    # Pinned to the Intel runner: the vendored Catch2 v2 header emits an x86
-    # "int $3" trap in CATCH_TRAP that does not assemble on Apple Silicon
-    # (macos-latest is arm64). Upgrading Catch2 would let this move to macos-latest.
-    runs-on: macos-13
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
