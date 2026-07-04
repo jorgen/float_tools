@@ -631,7 +631,10 @@ namespace ft
     static inline uint64_t umul128(uint64_t a, uint64_t b, uint64_t* hi)
     {
 #if defined(__SIZEOF_INT128__) && !defined(FT_NO_INT128)
-      unsigned __int128 p = (unsigned __int128)a * (unsigned __int128)b;
+      // __int128 is a GCC/clang extension; __extension__ suppresses the -Wpedantic
+      // diagnostic ("ISO C++ does not support '__int128'") for this statement. This
+      // branch is never compiled by MSVC (no __SIZEOF_INT128__).
+      __extension__ unsigned __int128 p = (unsigned __int128)a * (unsigned __int128)b;
       *hi = uint64_t(p >> 64);
       return uint64_t(p);
 #elif defined(_MSC_VER) && defined(_WIN64)
