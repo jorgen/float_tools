@@ -8,6 +8,7 @@ macro(create_test name)
     count_chars_test.cpp
     print_test.cpp
     integer_test.cpp
+    rounding_test.cpp
     )
 
   target_link_libraries(${name} fmt::fmt)
