@@ -89,6 +89,11 @@ namespace
   }
 }
 
+// The next three cases assert exact IEEE round-to-nearest results and lean on
+// an arbitrary-precision oracle plus strtof/strtod/isfinite/nextafter, all of
+// which -ffast-math is free to break. Skip them under fast math; the strict-FP
+// default_test still runs them.
+#ifndef __FAST_MATH__
 TEST_CASE("string to float is correctly rounded near float midpoints", "[roundtrip][float]")
 {
   std::mt19937 g(0xA11CEu);
@@ -142,6 +147,7 @@ TEST_CASE("string to double matches strtod", "[roundtrip][double]")
     if (double_bits(a) != double_bits(b)) { INFO(s); REQUIRE(double_bits(a) == double_bits(b)); }
   }
 }
+#endif // __FAST_MATH__
 
 TEST_CASE("to_integer clamps out of range values", "[integer]")
 {

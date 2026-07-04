@@ -12,6 +12,7 @@
 
 #include <thread>
 #include <chrono>
+#include <atomic>
 
 #include <fmt/printf.h>
 
@@ -155,6 +156,10 @@ TEST_CASE("parse_convert", "[float tools]")
   REQUIRE(d == 234567.5326e-100);
 }
 
+// Infinities, NaNs and denormals are exercised here; -ffast-math implies
+// -ffinite-math-only, which lets the compiler assume they never occur, so this
+// case cannot pass under fast math. It still runs in the strict-FP default_test.
+#ifndef __FAST_MATH__
 TEST_CASE("parse_convert_extremes", "[float tools]")
 {
   std::string too_large = "1.7976931348623157e309";
@@ -179,6 +184,7 @@ TEST_CASE("parse_convert_extremes", "[float tools]")
   memcpy(&value, &d, sizeof(d));
   REQUIRE(d == 4.9406564584124654e-324);
 }
+#endif // __FAST_MATH__
 
 TEST_CASE("random_numbers", "[roundtrip]")
 {
@@ -188,7 +194,12 @@ TEST_CASE("random_numbers", "[roundtrip]")
   auto thread_count = std::thread::hardware_concurrency();
   uint64_t range_pr_thread = range / thread_count;
 
-  auto task = [range_pr_thread, max_values_pr_thread](uint64_t range_start, const std::vector<int> &offsets, bool negative, bool print_progress = false)
+  // Catch2's REQUIRE is not thread-safe, so worker threads record the first
+  // mismatch into atomics and it is asserted on the main thread after join.
+  std::atomic<bool> mismatch{false};
+  std::atomic<uint64_t> bad_expected{0}, bad_actual{0};
+
+  auto task = [range_pr_thread, max_values_pr_thread, &mismatch, &bad_expected, &bad_actual](uint64_t range_start, const std::vector<int> &offsets, bool negative, bool print_progress = false)
   {
     uint64_t double_value;
     double double_number;
@@ -224,9 +235,17 @@ TEST_CASE("random_numbers", "[roundtrip]")
       memcpy(&double_number, &double_value, sizeof(double_number));
       double_str = ft::ryu::to_string(double_number);
       auto result = ft::to_double(double_str.data(), double_str.size(), converted_number, end_ptr);
-      REQUIRE(result == ft::parse_string_error::ok);
       memcpy(&converted_value, &converted_number, sizeof(converted_number));
-      REQUIRE(converted_value == double_value);
+      if (result != ft::parse_string_error::ok || converted_value != double_value)
+      {
+        bool expected = false;
+        if (mismatch.compare_exchange_strong(expected, true))
+        {
+          bad_expected = double_value;
+          bad_actual = converted_value;
+        }
+        return;
+      }
 
       step_index++;
       i += uint64_t(offsets[step_index % offsets.size()]) * scale_to_get_avrage_step;
@@ -285,6 +304,9 @@ TEST_CASE("random_numbers", "[roundtrip]")
   {
     thread.join();
   }
+
+  INFO("double roundtrip mismatch: expected bits " << bad_expected.load() << " got " << bad_actual.load());
+  REQUIRE_FALSE(mismatch);
 }
 
 TEST_CASE("random_numbers_float", "[roundtrip]")
@@ -295,7 +317,11 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
   auto thread_count = std::thread::hardware_concurrency();
   uint32_t range_pr_thread = range / thread_count;
 
-  auto task = [range_pr_thread, max_values_pr_thread](uint32_t range_start, const std::vector<uint32_t> &offsets, bool negative, bool print_progress = false)
+  // See random_numbers: REQUIRE is not thread-safe, so record and assert later.
+  std::atomic<bool> mismatch{false};
+  std::atomic<uint32_t> bad_expected{0}, bad_actual{0};
+
+  auto task = [range_pr_thread, max_values_pr_thread, &mismatch, &bad_expected, &bad_actual](uint32_t range_start, const std::vector<uint32_t> &offsets, bool negative, bool print_progress = false)
   {
     uint32_t float_value;
     float float_number;
@@ -331,9 +357,17 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
       memcpy(&float_number, &float_value, sizeof(float_number));
       float_str = ft::ryu::to_string(float_number);
       auto result = ft::to_float(float_str.data(), float_str.size(), converted_number, end_ptr);
-      REQUIRE(result == ft::parse_string_error::ok);
       memcpy(&converted_value, &converted_number, sizeof(converted_number));
-      REQUIRE(converted_value == float_value);
+      if (result != ft::parse_string_error::ok || converted_value != float_value)
+      {
+        bool expected = false;
+        if (mismatch.compare_exchange_strong(expected, true))
+        {
+          bad_expected = float_value;
+          bad_actual = converted_value;
+        }
+        return;
+      }
 
       step_index++;
       i += uint32_t(offsets[step_index % offsets.size()] * scale_to_get_avrage_step);
@@ -392,6 +426,9 @@ TEST_CASE("random_numbers_float", "[roundtrip]")
   {
     thread.join();
   }
+
+  INFO("float roundtrip mismatch: expected bits " << bad_expected.load() << " got " << bad_actual.load());
+  REQUIRE_FALSE(mismatch);
 }
 
 static void assert_double(uint64_t double_value)
