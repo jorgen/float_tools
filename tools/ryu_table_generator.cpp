@@ -6,6 +6,8 @@
 #include <limits>
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
+#include <cassert>
 
 using big_uint = ttmath::UInt<32>;
 using big_float = ttmath::Big<4, 32>;

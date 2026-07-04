@@ -20,6 +20,6 @@ function(Fetch3rdParty)
   include(FetchContent)
   set(FETCHCONTENT_QUIET OFF)
 
-  Fetch3rdParty_Package(fmt 6.0.0 https://github.com/fmtlib/fmt/archive/6.0.0.tar.gz SHA256=f1907a58d5e86e6c382e51441d92ad9e23aea63827ba47fd647eacc0d3a16c78)
+  Fetch3rdParty_Package(fmt 12.2.0 https://github.com/fmtlib/fmt/archive/12.2.0.tar.gz SHA256=8b852bb5aa6e7d8564f9e81394055395dd1d1936d38dfd3a17792a02bebd7af0)
 endfunction()
 
