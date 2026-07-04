@@ -31,6 +31,7 @@
 #include <string>
 #include <type_traits>
 #include <cmath>
+#include <cstring>
 #include <assert.h>
 #include <limits>
 #include <vector>
