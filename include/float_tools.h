@@ -32,6 +32,7 @@
 #include <type_traits>
 #include <cmath>
 #include <assert.h>
+#include <limits>
 #include <vector>
 
 #ifdef _MSC_VER
@@ -1485,10 +1486,10 @@ namespace ft
     if (!std::isfinite(af))
       return f;
     double ad = d < 0.0 ? -d : d;
-    float up = std::nextafter(af, HUGE_VALF);
+    float up = std::nextafter(af, std::numeric_limits<float>::infinity());
     float dn = std::nextafter(af, 0.0f);
     bool have_up = up > af && std::isfinite(up);
-    double ulp_d = std::nextafter(ad, HUGE_VAL) - ad;
+    double ulp_d = std::nextafter(ad, std::numeric_limits<double>::infinity()) - ad;
     bool near_hi = have_up && std::fabs(ad - 0.5 * (double(af) + double(up))) <= 4.0 * ulp_d;
     bool near_lo = std::fabs(ad - 0.5 * (double(dn) + double(af))) <= 4.0 * ulp_d;
     if (!near_hi && !near_lo)
