@@ -1372,7 +1372,7 @@ namespace ft
     template<typename T>
     inline parse_string_error to_integer(const char* str, size_t size, T& target, const char* (&endptr))
     {
-      using SignificandType = uint64_t;
+      using SignificandType = typename std::conditional<sizeof(T) <= sizeof(uint64_t), uint64_t, typename std::make_unsigned<T>::type>::type;
       parsed_string<SignificandType> ps;
       auto parseResult = parseNumber<SignificandType,true>(str, size, ps);
       endptr = ps.endptr;
