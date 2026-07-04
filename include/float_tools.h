@@ -32,6 +32,7 @@
 #include <type_traits>
 #include <cmath>
 #include <assert.h>
+#include <vector>
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -1394,6 +1395,149 @@ namespace ft
     }
   }
   
+  struct big_uint_cmp
+  {
+    std::vector<uint32_t> w;
+    big_uint_cmp() : w(1, 0) {}
+    void normalize() { while (w.size() > 1 && w.back() == 0) w.pop_back(); }
+    void mul_small(uint32_t m)
+    {
+      uint64_t c = 0;
+      for (auto& x : w) { uint64_t p = uint64_t(x) * m + c; x = uint32_t(p); c = p >> 32; }
+      if (c) w.push_back(uint32_t(c));
+    }
+    void add_small(uint32_t a)
+    {
+      uint64_t c = a;
+      for (size_t i = 0; i < w.size() && c; i++) { uint64_t p = uint64_t(w[i]) + c; w[i] = uint32_t(p); c = p >> 32; }
+      if (c) w.push_back(uint32_t(c));
+    }
+    void mul_pow5(int n) { for (int i = 0; i < n; i++) mul_small(5); }
+    void shift_left(int bits)
+    {
+      int words = bits / 32, b = bits % 32;
+      if (b)
+      {
+        uint32_t c = 0;
+        for (auto& x : w) { uint64_t p = (uint64_t(x) << b) | c; x = uint32_t(p); c = uint32_t(p >> 32); }
+        if (c) w.push_back(c);
+      }
+      if (words) w.insert(w.begin(), size_t(words), 0u);
+    }
+  };
+
+  inline int compare_big(big_uint_cmp a, big_uint_cmp b)
+  {
+    a.normalize(); b.normalize();
+    if (a.w.size() != b.w.size()) return a.w.size() < b.w.size() ? -1 : 1;
+    for (size_t i = a.w.size(); i-- > 0;) if (a.w[i] != b.w[i]) return a.w[i] < b.w[i] ? -1 : 1;
+    return 0;
+  }
+
+  inline int compare_value_scaled(big_uint_cmp value_digits, int decimal_exp, big_uint_cmp mid_int, int mid_pow2)
+  {
+    int min5 = decimal_exp < 0 ? decimal_exp : 0;
+    int min2 = decimal_exp < mid_pow2 ? decimal_exp : mid_pow2;
+    big_uint_cmp l = value_digits; l.mul_pow5(decimal_exp - min5); l.shift_left(decimal_exp - min2);
+    big_uint_cmp r = mid_int;      r.mul_pow5(0 - min5);           r.shift_left(mid_pow2 - min2);
+    return compare_big(l, r);
+  }
+
+  inline void float_to_int_pow2(float g, big_uint_cmp& m, int& e2)
+  {
+    uint32_t b;
+    memcpy(&b, &g, sizeof(b));
+    uint32_t ce = (b >> 23) & 0xff, mant = b & 0x7fffff;
+    m = big_uint_cmp();
+    m.w[0] = ce ? (mant | 0x800000) : mant;
+    e2 = ce ? int(ce) - 150 : -149;
+  }
+
+  inline void float_pair_midpoint(float g1, float g2, big_uint_cmp& mid_int, int& mid_pow2)
+  {
+    big_uint_cmp m1, m2; int e1, e2;
+    float_to_int_pow2(g1, m1, e1); float_to_int_pow2(g2, m2, e2);
+    int emin = e1 < e2 ? e1 : e2;
+    m1.shift_left(e1 - emin); m2.shift_left(e2 - emin);
+    size_t n = m1.w.size() > m2.w.size() ? m1.w.size() : m2.w.size();
+    m1.w.resize(n, 0);
+    uint64_t c = 0;
+    for (size_t i = 0; i < n; i++) { uint64_t p = uint64_t(m1.w[i]) + (i < m2.w.size() ? m2.w[i] : 0) + c; m1.w[i] = uint32_t(p); c = p >> 32; }
+    if (c) m1.w.push_back(uint32_t(c));
+    mid_int = m1; mid_pow2 = emin - 1;
+  }
+
+  inline bool float_mantissa_is_even(float g)
+  {
+    uint32_t b;
+    memcpy(&b, &g, sizeof(b));
+    return (b & 1) == 0;
+  }
+
+  inline float correctly_round_float(const char* str, size_t size, double d, float f)
+  {
+    if (f != f || f == 0.0f)
+      return f;
+    float af = f < 0.0f ? -f : f;
+    if (!std::isfinite(af))
+      return f;
+    double ad = d < 0.0 ? -d : d;
+    float up = std::nextafter(af, HUGE_VALF);
+    float dn = std::nextafter(af, 0.0f);
+    bool have_up = up > af && std::isfinite(up);
+    double ulp_d = std::nextafter(ad, HUGE_VAL) - ad;
+    bool near_hi = have_up && std::fabs(ad - 0.5 * (double(af) + double(up))) <= 4.0 * ulp_d;
+    bool near_lo = std::fabs(ad - 0.5 * (double(dn) + double(af))) <= 4.0 * ulp_d;
+    if (!near_hi && !near_lo)
+      return f;
+
+    const char* p = str;
+    const char* end = str + size;
+    while (p < end && is_space(*p)) p++;
+    if (p < end && (*p == '-' || *p == '+')) p++;
+    big_uint_cmp digits;
+    int fracdigits = 0;
+    bool seen_dot = false;
+    for (; p < end; ++p)
+    {
+      char c = *p;
+      if (c == '.') { if (seen_dot) break; seen_dot = true; continue; }
+      if (c < '0' || c > '9') break;
+      digits.mul_small(10);
+      digits.add_small(uint32_t(c - '0'));
+      if (seen_dot) fracdigits++;
+    }
+    int decimal_exp = -fracdigits;
+    if (p < end && (*p == 'e' || *p == 'E'))
+    {
+      p++;
+      bool en = false;
+      if (p < end && (*p == '-' || *p == '+')) { en = (*p == '-'); p++; }
+      int ex = 0;
+      while (p < end && *p >= '0' && *p <= '9') { ex = ex * 10 + (*p - '0'); p++; }
+      decimal_exp += en ? -ex : ex;
+    }
+
+    float mag = af;
+    if (near_hi)
+    {
+      big_uint_cmp mid; int e2;
+      float_pair_midpoint(af, up, mid, e2);
+      int c = compare_value_scaled(digits, decimal_exp, mid, e2);
+      if (c > 0) mag = up;
+      else if (c == 0) mag = float_mantissa_is_even(af) ? af : up;
+    }
+    if (mag == af && near_lo)
+    {
+      big_uint_cmp mid; int e2;
+      float_pair_midpoint(dn, af, mid, e2);
+      int c = compare_value_scaled(digits, decimal_exp, mid, e2);
+      if (c < 0) mag = dn;
+      else if (c == 0) mag = float_mantissa_is_even(dn) ? dn : af;
+    }
+    return std::signbit(f) ? -mag : mag;
+  }
+
   template<typename T>
   inline parse_string_error to_ieee_t(const char* str, size_t size, T &target, const char *(&endptr))
   {
@@ -1407,6 +1551,24 @@ namespace ft
     else
     {
       target = convertToNumber<T>(ps);
+    }
+    return parseResult;
+  }
+
+  template<>
+  inline parse_string_error to_ieee_t<float>(const char* str, size_t size, float &target, const char *(&endptr))
+  {
+    parsed_string<uint64_t> ps;
+    auto parseResult = parseNumber<uint64_t, false>(str, size, ps);
+    endptr = ps.endptr;
+    if (parseResult != parse_string_error::ok)
+    {
+      target = make_nan<float>(true, 1);
+    }
+    else
+    {
+      double d = convertToNumber<double, uint64_t>(ps);
+      target = correctly_round_float(str, size, d, float(d));
     }
     return parseResult;
   }
